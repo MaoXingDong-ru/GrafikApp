@@ -1,0 +1,25 @@
+﻿<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Grafik.MainPage">
+
+    <StackLayout Padding="20">
+        <Label Text="1. Загрузи Excel файл расписания" FontSize="22" HorizontalOptions="Center" />
+
+        <!-- Кнопка для загрузки EXCEL -->
+        <Button Text="Загрузить EXCEL" Clicked="OnLoadExcelClicked"></Button>
+        <Label x:Name="Transp1" Text="Заглушка для разделения" TextColor="Transparent"></Label>
+        <Label x:Name="Transp2" Text="Заглушка для разделения" TextColor="Transparent"></Label>
+        <Label x:Name="Instruction2" Text="2. Выбери себя" FontSize="22" HorizontalOptions="Center" IsVisible="False"></Label>
+        <!-- Выпадающий список для выбора сотрудника -->
+        <Picker x:Name="EmployeePicker" SelectedIndexChanged="OnEmployeeSelected" IsVisible="False">
+            <Picker.ItemsSource>
+
+            </Picker.ItemsSource>
+        </Picker>
+        <Label x:Name="Transp6" Text="Заглушка для разделения" TextColor="Transparent"></Label>
+        <Button x:Name="LoadSchedule" Text="Загрузить" Clicked="LoadScheduleForEmployeer" IsVisible="False"></Button>
+        <Label x:Name="Transp4" Text="Заглушка для разделения" TextColor="Transparent"></Label>
+        <Label x:Name="Transp5" Text="Заглушка для разделения" TextColor="Transparent"></Label>
+        <Label x:Name="MessageLabel" IsVisible="Hidden"></Label>
+    </StackLayout>
+</ContentPage>
