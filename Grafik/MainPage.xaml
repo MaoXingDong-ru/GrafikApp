@@ -21,5 +21,6 @@
         <Label x:Name="Transp4" Text="Заглушка для разделения" TextColor="Transparent"></Label>
         <Label x:Name="Transp5" Text="Заглушка для разделения" TextColor="Transparent"></Label>
         <Label x:Name="MessageLabel" IsVisible="Hidden"></Label>
+        <Button x:Name="DeleteData" Text="Удалить данные" Clicked="DeleteAllFiles" IsVisible="False" VerticalOptions="EndAndExpand"></Button>
     </StackLayout>
 </ContentPage>

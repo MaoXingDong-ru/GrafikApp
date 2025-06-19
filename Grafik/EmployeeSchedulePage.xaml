@@ -3,10 +3,10 @@
              x:Class="Grafik.EmployeeSchedulePage">
 
     <StackLayout Padding="20" VerticalOptions="FillAndExpand">
-        <!-- Здесь мы добавляем Label для отображения имени сотрудника -->
+        <!-- Label для отображения имени сотрудника -->
         <Label x:Name="EmployeeNameLabel" FontSize="24" HorizontalOptions="Center" />
 
-        <!-- Оборачиваем в ScrollView для прокрутки всех элементов -->
+        <!-- ScrollView для прокрутки всех элементов -->
         <ScrollView>
             <CollectionView x:Name="ScheduleListView" HeightRequest="650">
                 <CollectionView.ItemTemplate>
@@ -14,6 +14,7 @@
                         <Frame Padding="10">
                             <StackLayout>
                                 <Label Text="{Binding Date}" FontAttributes="Bold" />
+                                <Label Text="{Binding Worktime}" FontAttributes="Bold"/>
                                 <Label Text="{Binding Shift}" />
                                 <Label Text="{Binding Employees}" />
                                 <Label Text="{Binding DisplayOtherEmployees}" FontSize="12" TextColor="Gray" />

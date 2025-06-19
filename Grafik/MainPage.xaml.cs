@@ -6,7 +6,7 @@ namespace Grafik;
 
 public partial class MainPage : ContentPage
 {
-    private string scheduleFilePath = Path.Combine(FileSystem.AppDataDirectory, "schedule.json");
+    private readonly string scheduleFilePath = Path.Combine(FileSystem.AppDataDirectory, "schedule.json");
     private string employeeListFilePath = Path.Combine(FileSystem.AppDataDirectory, "employees.json");
 
 
@@ -30,8 +30,8 @@ public partial class MainPage : ContentPage
     {
         var customFileType = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>>
         {
-            { DevicePlatform.Android, new[] { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" } }, // .xlsx MIME type
-            { DevicePlatform.WinUI, new[] { ".xlsx" } }
+            { DevicePlatform.Android, new[] { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" } }, // только xlsx файлы
+            { DevicePlatform.WinUI, new[] { ".xlsx", ".xls" } }
         });
 
         var result = await FilePicker.PickAsync(new PickOptions
@@ -63,6 +63,10 @@ public partial class MainPage : ContentPage
             if (uniqueEmployees.Count > 0)
             {
                 EmployeePicker.ItemsSource = uniqueEmployees;
+                EmployeePicker.IsVisible = true;
+                DeleteData.IsVisible = true;
+                Instruction2.IsVisible = true;
+                DisplayMessage("Данные загружены");
             }
             else
             {
@@ -98,12 +102,18 @@ public partial class MainPage : ContentPage
 
                 if (!string.IsNullOrWhiteSpace(dayShift) || !string.IsNullOrWhiteSpace(nightShift))
                 {
+                    var worktimeText = "";
                     var shiftText = "";
                     if (!string.IsNullOrWhiteSpace(dayShift))
+                    {
                         shiftText += "Дневная ";
+                        worktimeText += "09:00 - 21:00 ";
+                    }
                     if (!string.IsNullOrWhiteSpace(nightShift))
+                    {
                         shiftText += "Ночная";
-
+                        worktimeText += "21:00 - 09:00";
+                    }
                     var entry = result.FirstOrDefault(e => e.Employees == name && e.Date.Day == day);
                     if (entry == null)
                     {
@@ -112,6 +122,7 @@ public partial class MainPage : ContentPage
                             Employees = name,
                             Date = new DateTime(DateTime.Now.Year, DateTime.Now.Month, day),
                             Shift = shiftText.Trim(),
+                            Worktime = worktimeText,
                             OtherEmployeesWithSameShift = new List<string> { name }
                         });
                     }
@@ -136,9 +147,9 @@ public partial class MainPage : ContentPage
         var employeeJson = JsonSerializer.Serialize(employees, new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(employeeListFilePath, employeeJson);
     }
-
+    
     // Сохранение расписания в JSON
-    private void SaveScheduleToJson(List<ShiftEntry> schedule)
+    private static void SaveScheduleToJson(List<ShiftEntry> schedule)
     {
 
         var json = JsonSerializer.Serialize(schedule, new JsonSerializerOptions { WriteIndented = true });
@@ -156,6 +167,7 @@ public partial class MainPage : ContentPage
             // Если файл существует, загружаем данные сотрудников из JSON
             string jsonData = File.ReadAllText(employeeListFilePath);
             var employees = JsonSerializer.Deserialize<List<string>>(jsonData);
+            DeleteData.IsVisible = true;
 
             // Заполняем Picker списком сотрудников
             if (employees != null && employees.Count > 0)
@@ -163,6 +175,7 @@ public partial class MainPage : ContentPage
                 EmployeePicker.IsVisible = true;
                 Instruction2.IsVisible = true;
                 EmployeePicker.ItemsSource = employees;
+
             }
         }
         else
@@ -174,13 +187,13 @@ public partial class MainPage : ContentPage
 
     private void DisplayMessage(string message)
     {
-        // Отображение сообщения (например, через Label)
+        // Отображение сообщения через Label
         MessageLabel.IsVisible = true;
         MessageLabel.Text = message;
     }
 
     // Обработка выбора сотрудника
-    internal async void OnEmployeeSelected(object sender, EventArgs e)
+    internal void OnEmployeeSelected(object sender, EventArgs e)
     {
         var selectedEmployee = EmployeePicker.SelectedItem as string;
         if (!string.IsNullOrEmpty(selectedEmployee))
@@ -188,6 +201,7 @@ public partial class MainPage : ContentPage
             // Сохраняем выбранного сотрудника в настройках
             Preferences.Set("SelectedEmployee", selectedEmployee);
             LoadSchedule.IsVisible = true;
+            DeleteData.IsVisible = true;
         }
 
     }
@@ -208,5 +222,16 @@ public partial class MainPage : ContentPage
             await DisplayAlert("Ошибка", "Пожалуйста, выберите сотрудника", "OK");
         }
     }
-
+    internal void DeleteAllFiles(object sender, EventArgs e)
+    {
+        File.Delete(employeeListFilePath);
+        File.Delete(scheduleFilePath);
+        Console.WriteLine("Данные удалены");
+        LoadSchedule.IsVisible = false;
+        EmployeePicker.IsVisible = false;
+        Preferences.Clear();
+        Instruction2.IsVisible = false;
+        DeleteData.IsVisible = false;
+        DisplayMessage("Данные удалены, загрузитье файл повторно.");
+    }
 }

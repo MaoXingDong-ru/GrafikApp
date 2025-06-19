@@ -48,7 +48,7 @@ namespace Grafik
                         .ToList();
 
                     entry.DisplayOtherEmployees = sameShiftEntries.Count > 0
-                        ? "Совпадения: " + string.Join(", ", sameShiftEntries)
+                        ? "Коллеги: " + string.Join(", ", sameShiftEntries)
                         : "Нет совпадений";
                 }
 
