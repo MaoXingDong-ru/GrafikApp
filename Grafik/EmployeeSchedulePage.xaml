@@ -13,7 +13,7 @@
                     <DataTemplate>
                         <Frame Padding="10">
                             <StackLayout>
-                                <Label Text="{Binding Date}" FontAttributes="Bold" />
+                                <Label Text="{Binding Date, StringFormat=\{0:D\}}" FontAttributes="Bold"/>
                                 <Label Text="{Binding Worktime}" FontAttributes="Bold"/>
                                 <Label Text="{Binding Shift}" />
                                 <Label Text="{Binding Employees}" />
