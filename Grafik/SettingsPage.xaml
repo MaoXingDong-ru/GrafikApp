@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Grafik.SettingsPage"
+             Title="Настройки" >
+
+    <ScrollView>
+        <VerticalStackLayout>
+            <Label Text="Количество сотрудников первой линии"/>
+            
+            <Entry x:Name="FirstLineCountEntry" 
+                   Keyboard="Numeric"/>
+
+            <StackLayout x:Name="SecondLineSettings" 
+                         IsVisible="True">
+                
+                <Label Text="Количество сотрудников второй линии"/>
+                
+                <Entry x:Name="SecondLineCountEntry" 
+                       Keyboard="Numeric"/>
+                
+            </StackLayout>
+            
+            <Label x:Name="Transp" BackgroundColor="Transparent"></Label>
+            
+            <Button Text="Сохранить" 
+                    Clicked="OnSaveSettingsClicked" 
+                    BackgroundColor="#191968"
+                    TextColor="White"/>
+            
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

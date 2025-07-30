@@ -1,4 +1,4 @@
-using System.Text.Json;
+п»їusing System.Text.Json;
 
 namespace Grafik
 {
@@ -8,13 +8,13 @@ namespace Grafik
         {
             InitializeComponent();
 
-            // Отображаем имя сотрудника
+            // РћС‚РѕР±СЂР°Р¶Р°РµРј РёРјСЏ СЃРѕС‚СЂСѓРґРЅРёРєР°
             EmployeeNameLabel.Text = employeeName;
 
             LoadEmployeeScheduleAsync(employeeName);
         }
 
-        // Асинхронная загрузка расписания
+        // РђСЃРёРЅС…СЂРѕРЅРЅР°СЏ Р·Р°РіСЂСѓР·РєР° СЂР°СЃРїРёСЃР°РЅРёСЏ
         public async void LoadEmployeeScheduleAsync(string employeeName)
         {
             try
@@ -27,38 +27,53 @@ namespace Grafik
                     return;
                 }
 
-                var json = await File.ReadAllTextAsync(filePath); // Асинхронно загружаем JSON
+                var json = await File.ReadAllTextAsync(filePath);
                 var allSchedule = JsonSerializer.Deserialize<List<ShiftEntry>>(json) ?? new();
 
-                // Получаем только смены выбранного сотрудника
+                // РџРѕР»СѓС‡Р°РµРј С‚РѕР»СЊРєРѕ СЃРјРµРЅС‹ РІС‹Р±СЂР°РЅРЅРѕРіРѕ СЃРѕС‚СЂСѓРґРЅРёРєР°
                 var employeeSchedule = allSchedule
                     .Where(e => e.Employees == employeeName)
                     .ToList();
 
-                // Для каждой смены — ищем совпадающих сотрудников
                 foreach (var entry in employeeSchedule)
                 {
+                    // РЎРїРёСЃРѕРє РєРѕР»Р»РµРі СЃ С‚РѕР№ Р¶Рµ СЃРјРµРЅРѕР№
                     var sameShiftEntries = allSchedule
                         .Where(e =>
                             e.Date == entry.Date &&
-                            e.Shift == entry.Shift && // учитываем и тип смены
+                            e.Shift == entry.Shift &&
                             e.Employees != employeeName)
                         .Select(e => e.Employees)
                         .Distinct()
                         .ToList();
 
                     entry.DisplayOtherEmployees = sameShiftEntries.Count > 0
-                        ? "Коллеги: " + string.Join(", ", sameShiftEntries)
-                        : "Нет совпадений";
+                        ? "РљРѕР»Р»РµРіРё: " + string.Join(", ", sameShiftEntries)
+                        : "РќРµС‚ СЃРѕРІРїР°РґРµРЅРёР№";
+
+                    // рџ†• РµСЃР»Рё СЃРѕС‚СЂСѓРґРЅРёРє РёР· РїРµСЂРІРѕР№ Р»РёРЅРёРё вЂ” РёС‰РµРј РєРѕРіРѕ-С‚Рѕ РёР· РІС‚РѕСЂРѕР№ РЅР° С‚РѕР№ Р¶Рµ СЃРјРµРЅРµ
+                    if (!entry.IsSecondLine)
+                    {
+                        var secondLinePerson = allSchedule
+                            .FirstOrDefault(e =>
+                                e.Date == entry.Date &&
+                                e.Shift == entry.Shift &&
+                                e.IsSecondLine &&
+                                e.Employees != employeeName);
+
+                        if (secondLinePerson != null)
+                        {
+                            entry.SecondLinePartner = "Р’С‚РѕСЂР°СЏ Р»РёРЅРёСЏ: " + secondLinePerson.Employees;
+                        }
+                    }
                 }
 
-                // Отображаем расписание
                 ScheduleListView.ItemsSource = employeeSchedule;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Ошибка при загрузке расписания: {ex.Message}");
-                await DisplayAlert("Ошибка", "Произошла ошибка при загрузке данных.", "OK");
+                Console.WriteLine($"РћС€РёР±РєР° РїСЂРё Р·Р°РіСЂСѓР·РєРµ СЂР°СЃРїРёСЃР°РЅРёСЏ: {ex.Message}");
+                await DisplayAlert("РћС€РёР±РєР°", "РџСЂРѕРёР·РѕС€Р»Р° РѕС€РёР±РєР° РїСЂРё Р·Р°РіСЂСѓР·РєРµ РґР°РЅРЅС‹С….", "OK");
             }
         }
     }

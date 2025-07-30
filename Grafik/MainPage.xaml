@@ -2,25 +2,84 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Grafik.MainPage">
 
-    <StackLayout Padding="20">
-        <Label Text="1. Загрузи Excel файл расписания" FontSize="22" HorizontalOptions="Center" />
+    <AbsoluteLayout>
+        <!-- Основной контент -->
+        <ScrollView AbsoluteLayout.LayoutBounds="0,0,1,1" 
+                    AbsoluteLayout.LayoutFlags="All">
+            <StackLayout Padding="20" Spacing="15" x:Name="MainStackLayout">
+                <!-- Первая группа элементов (начальное состояние) -->
+                <StackLayout x:Name="FirstStepGroup">
+                    <Label Text="Загрузи Excel файл расписания" 
+                           FontSize="22" 
+                           HorizontalOptions="Center" />
+                    
+                    <Label x:Name="Transp1" 
+                           BackgroundColor="Transparent"></Label>
 
-        <!-- Кнопка для загрузки EXCEL -->
-        <Button Text="Загрузить EXCEL" Clicked="OnLoadExcelClicked"></Button>
-        <Label x:Name="Transp1" Text="Заглушка для разделения" TextColor="Transparent"></Label>
-        <Label x:Name="Transp2" Text="Заглушка для разделения" TextColor="Transparent"></Label>
-        <Label x:Name="Instruction2" Text="2. Выбери себя" FontSize="22" HorizontalOptions="Center" IsVisible="False"></Label>
-        <!-- Выпадающий список для выбора сотрудника -->
-        <Picker x:Name="EmployeePicker" SelectedIndexChanged="OnEmployeeSelected" IsVisible="False">
-            <Picker.ItemsSource>
+                    <Button Text="Загрузить EXCEL" 
+                            Clicked="OnLoadExcelClicked"
+                            HorizontalOptions="FillAndExpand"
+                            BackgroundColor="#191968"
+                            TextColor="White"/>
+                </StackLayout>
 
-            </Picker.ItemsSource>
-        </Picker>
-        <Label x:Name="Transp6" Text="Заглушка для разделения" TextColor="Transparent"></Label>
-        <Button x:Name="LoadSchedule" Text="Загрузить" Clicked="LoadScheduleForEmployeer" IsVisible="False"></Button>
-        <Label x:Name="Transp4" Text="Заглушка для разделения" TextColor="Transparent"></Label>
-        <Label x:Name="Transp5" Text="Заглушка для разделения" TextColor="Transparent"></Label>
-        <Label x:Name="MessageLabel" IsVisible="Hidden"></Label>
-        <Button x:Name="DeleteData" Text="Удалить данные" Clicked="DeleteAllFiles" IsVisible="False" VerticalOptions="EndAndExpand"></Button>
-    </StackLayout>
+
+                <!-- Вторая группа элементов (изначально скрыта) -->
+                <StackLayout x:Name="SecondStepGroup" IsVisible="False">
+                    <Label x:Name="Instruction2" 
+                           Text="Выбери сотрудника" 
+                           FontSize="22" 
+                           HorizontalOptions="Center"/>
+                    
+                    <Label x:Name="Transp2" 
+                           BackgroundColor="Transparent"></Label>
+                    
+                    <Picker x:Name="EmployeePicker" 
+                            SelectedIndexChanged="OnEmployeeSelected"
+                            HorizontalOptions="FillAndExpand"/>
+                    
+                    <Label x:Name="Transp3" BackgroundColor="Transparent"></Label>
+
+                    <Button x:Name="LoadSchedule" 
+                            Text="Загрузить расписание" 
+                            Clicked="LoadScheduleForEmployeer"
+                            HorizontalOptions="FillAndExpand"
+                            BackgroundColor="#191968"
+                            TextColor="White"/>
+                </StackLayout>
+
+                <Label x:Name="MessageLabel" 
+                       IsVisible="False"
+                       HorizontalOptions="Center"
+                       TextColor="Red"/>
+            </StackLayout>
+        </ScrollView>
+
+        <!-- Кнопка настроек -->
+        <Button x:Name="SettingsButton"
+                Text="⚙"
+                FontSize="16"
+                WidthRequest="50"
+                HeightRequest="50"
+                CornerRadius="25"
+                BackgroundColor="#007ACC"
+                TextColor="White"
+                Clicked="GoToSettings"
+                AbsoluteLayout.LayoutBounds="1,1,120,120"
+                AbsoluteLayout.LayoutFlags="PositionProportional" />
+
+        <!-- Кнопка удаления -->
+        <Button x:Name="DeleteData"
+                Text="🗑"
+                FontSize="16"
+                WidthRequest="50"
+                HeightRequest="50"
+                CornerRadius="25"
+                BackgroundColor="DarkRed"
+                TextColor="White"
+                Clicked="DeleteAllFiles"
+                TranslationX="-50"
+                AbsoluteLayout.LayoutBounds="0,1,120,120"
+                AbsoluteLayout.LayoutFlags="PositionProportional" />
+    </AbsoluteLayout>
 </ContentPage>

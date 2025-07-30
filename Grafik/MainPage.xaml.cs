@@ -1,5 +1,6 @@
-﻿using Microsoft.Maui.Storage;
-using ClosedXML.Excel;
+﻿using ClosedXML.Excel;
+using Microsoft.Maui.Storage;
+using System.Globalization;
 using System.Text.Json;
 
 namespace Grafik;
@@ -7,214 +8,265 @@ namespace Grafik;
 public partial class MainPage : ContentPage
 {
     private readonly string scheduleFilePath = Path.Combine(FileSystem.AppDataDirectory, "schedule.json");
-    private string employeeListFilePath = Path.Combine(FileSystem.AppDataDirectory, "employees.json");
-
+    private readonly string employeeListFilePath = Path.Combine(FileSystem.AppDataDirectory, "employees.json");
 
     public MainPage()
     {
         InitializeComponent();
+        SetupInitialState();
         LoadEmployeeList();
+    }
+
+    private void SetupInitialState()
+    {
+        DeleteData.IsVisible = false;
+        DeleteData.TranslationX = -120;
 
         string selectedEmployee = Preferences.Get("SelectedEmployee", string.Empty);
-
         if (!string.IsNullOrEmpty(selectedEmployee))
         {
-            // Если сотрудник был выбран ранее, автоматически загружаем его расписание
-             Navigation.PushAsync(new EmployeeSchedulePage(selectedEmployee));
+            Navigation.PushAsync(new EmployeeSchedulePage(selectedEmployee));
         }
     }
-    
 
-    // Загружаем список сотрудников
+    private AppSettings LoadSettings()
+    {
+        string settingsPath = Path.Combine(FileSystem.AppDataDirectory, "settings.json");
+        if (File.Exists(settingsPath))
+        {
+            var json = File.ReadAllText(settingsPath);
+            return JsonSerializer.Deserialize<AppSettings>(json);
+        }
+        return new AppSettings();
+    }
+
     private async void OnLoadExcelClicked(object sender, EventArgs e)
     {
         var customFileType = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>>
         {
-            { DevicePlatform.Android, new[] { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" } }, // только xlsx файлы
+            { DevicePlatform.Android, new[] { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" } },
             { DevicePlatform.WinUI, new[] { ".xlsx", ".xls" } }
         });
 
-        var result = await FilePicker.PickAsync(new PickOptions
+        try
         {
-            PickerTitle = "Выберите файл с расписанием",
-            FileTypes = customFileType
-        });
+            var result = await FilePicker.Default.PickAsync(new PickOptions
+            {
+                PickerTitle = "Выберите файл с расписанием",
+                FileTypes = customFileType
+            });
 
-        if (result != null)
+            if (result != null)
+            {
+                await ProcessExcelFile(result.FullPath);
+            }
+        }
+        catch (Exception ex)
         {
-            var fileBytes = File.ReadAllBytes(result.FullPath);
+            DisplayMessage($"Ошибка: {ex.Message}");
+        }
+    }
 
-            // Извлекаем расписание
-            var schedule = ExtractScheduleFromExcel(fileBytes);
+    private async Task ProcessExcelFile(string filePath)
+    {
+        var fileBytes = File.ReadAllBytes(filePath);
+        var settings = LoadSettings();
 
-            // Сохраняем расписание в JSON
-            SaveScheduleToJson(schedule);
+        if (settings?.EmployeeCount <= 0)
+        {
+            DisplayMessage("Настройки не заданы. Откройте страницу настроек.");
+            return;
+        }
 
-            // Извлекаем уникальные имена сотрудников
-            var uniqueEmployees = schedule.Select(s => s.Employees).Distinct().ToList();
+        var schedule = ExtractScheduleFromExcel(fileBytes, settings);
+        SaveScheduleToJson(schedule);
 
-            // Сохраняем расписание в JSON
-            SaveScheduleToJson(schedule);
+        var uniqueEmployees = schedule.Select(s => s.Employees).Distinct().ToList();
+        SaveEmployeesToJson(uniqueEmployees);
 
-            // Сохраняем уникальные имена сотрудников в отдельный JSON
-            SaveEmployeesToJson(uniqueEmployees);
-
-            // Заполняем Picker списком сотрудников
-            if (uniqueEmployees.Count > 0)
-            {
-                EmployeePicker.ItemsSource = uniqueEmployees;
-                EmployeePicker.IsVisible = true;
-                DeleteData.IsVisible = true;
-                Instruction2.IsVisible = true;
-                DisplayMessage("Данные загружены");
-            }
-            else
-            {
-                DisplayMessage("Не удалось извлечь сотрудников.");
-            }
+        if (uniqueEmployees.Count > 0)
+        {
+            EmployeePicker.ItemsSource = uniqueEmployees;
+            await AnimateToStep2UI();
+            await ShowDeleteButton();
+            DisplayMessage("Данные успешно загружены");
         }
         else
         {
-            DisplayMessage("Файл не выбран.");
+            DisplayMessage("Не удалось извлечь сотрудников.");
         }
-      
-
     }
 
-    // Извлечение расписания из Excel
-    public static List<ShiftEntry> ExtractScheduleFromExcel(byte[] fileData)
+    private async Task AnimateToStep2UI()
+    {
+        await FirstStepGroup.FadeTo(0, 300);
+        FirstStepGroup.IsVisible = false;
+
+        SecondStepGroup.Opacity = 0;
+        SecondStepGroup.IsVisible = true;
+
+        await SecondStepGroup.FadeTo(1, 300);
+    }
+
+    private async Task AnimateBackToStep1UI()
+    {
+        await SecondStepGroup.FadeTo(0, 300);
+        SecondStepGroup.IsVisible = false;
+
+        FirstStepGroup.Opacity = 0;
+        FirstStepGroup.IsVisible = true;
+
+        await FirstStepGroup.FadeTo(1, 300);
+    }
+
+    private async Task ShowDeleteButton()
+    {
+        DeleteData.IsVisible = true;
+        await DeleteData.TranslateTo(0, 0, 300, Easing.SinOut);
+    }
+
+    private async Task HideDeleteButton()
+    {
+        await DeleteData.TranslateTo(-50, 0, 200, Easing.SinIn);
+        DeleteData.IsVisible = false;
+    }
+
+    public static List<ShiftEntry> ExtractScheduleFromExcel(byte[] fileData, AppSettings settings)
     {
         var result = new List<ShiftEntry>();
-
         using var stream = new MemoryStream(fileData);
         using var workbook = new XLWorkbook(stream);
-        var worksheet = workbook.Worksheet(1);  // Первый лист
+        var worksheet = workbook.Worksheet(1);
 
-        for (int day = 1; day <= 30; day++)
+        var invalidNames = new HashSet<string> { "дата", "время", "date", "time", "", null };
+        var dayColumns = GetValidDayColumns(worksheet);
+
+        int startRowFirstLine = 4;
+        int firstLineEndRow = ProcessEmployeeGroup(worksheet, startRowFirstLine, settings.EmployeeCount,
+                                                 result, invalidNames, false, dayColumns);
+
+        if (settings.HasSecondLineEmployees || settings.SecondLineEmployeeCount > 0)
         {
-            int dayColumn = day * 2;  // Колонки для дневной и ночной смены
-
-            for (int row = 4; row <= 20; row++)  // Строки с 4 по 20
-            {
-                var name = worksheet.Cell(row, 1).GetString();
-                var dayShift = worksheet.Cell(row, dayColumn).GetString();
-                var nightShift = worksheet.Cell(row, dayColumn + 1).GetString();
-
-                if (!string.IsNullOrWhiteSpace(dayShift) || !string.IsNullOrWhiteSpace(nightShift))
-                {
-                    var worktimeText = "";
-                    var shiftText = "";
-                    if (!string.IsNullOrWhiteSpace(dayShift))
-                    {
-                        shiftText += "Дневная ";
-                        worktimeText += "09:00 - 21:00 ";
-                    }
-                    if (!string.IsNullOrWhiteSpace(nightShift))
-                    {
-                        shiftText += "Ночная";
-                        worktimeText += "21:00 - 09:00";
-                    }
-                    var entry = result.FirstOrDefault(e => e.Employees == name && e.Date.Day == day);
-                    if (entry == null)
-                    {
-                        result.Add(new ShiftEntry
-                        {
-                            Employees = name,
-                            Date = new DateTime(DateTime.Now.Year, DateTime.Now.Month, day),
-                            Shift = shiftText.Trim(),
-                            Worktime = worktimeText,
-                            OtherEmployeesWithSameShift = new List<string> { name }
-                        });
-                    }
-                    else
-                    {
-                        entry.Shift += ", " + shiftText.Trim();
-                        if (!entry.OtherEmployeesWithSameShift.Contains(name))
-                        {
-                            entry.OtherEmployeesWithSameShift.Add(name);
-                        }
-                    }
-                }
-            }
+            int startRowSecondLine = firstLineEndRow + 4;
+            ProcessEmployeeGroup(worksheet, startRowSecondLine, settings.SecondLineEmployeeCount,
+                               result, invalidNames, true, dayColumns);
         }
 
         return result;
     }
 
-    // Сохранение Сотрудников в JSON
+    private static List<(int ColumnIndex, DateTime Date)> GetValidDayColumns(IXLWorksheet worksheet)
+    {
+        var result = new List<(int, DateTime)>();
+        int col = 2;
+
+        while (true)
+        {
+            var cell = worksheet.Cell(1, col);
+            if (DateTime.TryParse(cell.GetString(), out DateTime parsedDate))
+            {
+                result.Add((col, parsedDate));
+                col += 2;
+            }
+            else break;
+        }
+
+        return result;
+    }
+
+    private static int ProcessEmployeeGroup(IXLWorksheet worksheet, int startRow, int count,
+                                          List<ShiftEntry> result, HashSet<string> invalidNames,
+                                          bool isSecondLine, List<(int ColumnIndex, DateTime Date)> dayColumns)
+    {
+        int endRow = startRow + count;
+        int lastProcessedRow = startRow;
+        var ExclusionWords = new[] { "отпуск", "замещает", "Игорь", "Ангелина" };
+
+        for (int row = startRow; row < endRow; row++)
+        {
+            var nameCell = worksheet.Cell(row, 1);
+            string rawName = nameCell.GetString().Trim().ToLower();
+
+            if (invalidNames.Contains(rawName)) continue;
+
+            string name = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(rawName);
+
+            foreach (var (col, date) in dayColumns)
+            {
+                var dayShift = worksheet.Cell(row, col).GetString().Trim();
+                var nightShift = worksheet.Cell(row, col + 1).GetString().Trim();
+
+                bool shouldExclude = ExclusionWords.Any(keyword =>
+                dayShift.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                nightShift.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0);
+
+                if (!shouldExclude && (!string.IsNullOrWhiteSpace(dayShift) || !string.IsNullOrWhiteSpace(nightShift)))
+                {
+                    result.Add(new ShiftEntry
+                    {
+                        Employees = name,
+                        Date = date,
+                        Shift = $"{(string.IsNullOrEmpty(dayShift) ? "" : "Дневная")} {(string.IsNullOrEmpty(nightShift) ? "" : "Ночная")}".Trim(),
+                        Worktime = $"{(string.IsNullOrEmpty(dayShift) ? "" : "09:00-21:00")} {(string.IsNullOrEmpty(nightShift) ? "" : "21:00-09:00")}".Trim(),
+                        IsSecondLine = isSecondLine
+                    });
+                }
+            }
+
+            lastProcessedRow = row;
+        }
+
+        return lastProcessedRow;
+    }
+
     private void SaveEmployeesToJson(List<string> employees)
     {
-        var employeeJson = JsonSerializer.Serialize(employees, new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(employeeListFilePath, employeeJson);
+        var json = JsonSerializer.Serialize(employees, new JsonSerializerOptions { WriteIndented = true });
+        File.WriteAllText(employeeListFilePath, json);
     }
-    
-    // Сохранение расписания в JSON
+
     private static void SaveScheduleToJson(List<ShiftEntry> schedule)
     {
-
         var json = JsonSerializer.Serialize(schedule, new JsonSerializerOptions { WriteIndented = true });
-        var filePath = Path.Combine(FileSystem.AppDataDirectory, "schedule.json");
-        File.WriteAllText(filePath, json);
-
+        File.WriteAllText(Path.Combine(FileSystem.AppDataDirectory, "schedule.json"), json);
     }
 
-    // Загрузка списка сотрудников
     private void LoadEmployeeList()
     {
-        // Проверка существования JSON файла
         if (File.Exists(employeeListFilePath))
         {
-            // Если файл существует, загружаем данные сотрудников из JSON
-            string jsonData = File.ReadAllText(employeeListFilePath);
-            var employees = JsonSerializer.Deserialize<List<string>>(jsonData);
-            DeleteData.IsVisible = true;
+            var json = File.ReadAllText(employeeListFilePath);
+            var employees = JsonSerializer.Deserialize<List<string>>(json);
 
-            // Заполняем Picker списком сотрудников
-            if (employees != null && employees.Count > 0)
+            if (employees?.Count > 0)
             {
-                EmployeePicker.IsVisible = true;
-                Instruction2.IsVisible = true;
                 EmployeePicker.ItemsSource = employees;
-
+                _ = AnimateToStep2UI();
+                _ = ShowDeleteButton();
             }
         }
-        else
-        {
-            EmployeePicker.IsVisible = false; // Скрываем Picker, так как данных нет
-        }
     }
-
 
     private void DisplayMessage(string message)
     {
-        // Отображение сообщения через Label
-        MessageLabel.IsVisible = true;
         MessageLabel.Text = message;
+        MessageLabel.IsVisible = true;
     }
 
-    // Обработка выбора сотрудника
-    internal void OnEmployeeSelected(object sender, EventArgs e)
+    private void OnEmployeeSelected(object sender, EventArgs e)
     {
-        var selectedEmployee = EmployeePicker.SelectedItem as string;
-        if (!string.IsNullOrEmpty(selectedEmployee))
+        if (EmployeePicker.SelectedItem is string selectedEmployee && !string.IsNullOrEmpty(selectedEmployee))
         {
-            // Сохраняем выбранного сотрудника в настройках
             Preferences.Set("SelectedEmployee", selectedEmployee);
             LoadSchedule.IsVisible = true;
-            DeleteData.IsVisible = true;
         }
-
     }
-    internal async void LoadScheduleForEmployeer(object sender, EventArgs e)
+
+    private async void LoadScheduleForEmployeer(object sender, EventArgs e)
     {
-        var selectedEmployee = EmployeePicker.SelectedItem as string;
-
-        if (!string.IsNullOrEmpty(selectedEmployee))
+        if (EmployeePicker.SelectedItem is string selectedEmployee)
         {
-            // Сохраняем выбранного сотрудника в Preferences, чтобы он сохранялся после перезапуска
             Preferences.Set("SelectedEmployee", selectedEmployee);
-
-            // Переходим на страницу расписания для выбранного сотрудника
             await Navigation.PushAsync(new EmployeeSchedulePage(selectedEmployee));
         }
         else
@@ -222,16 +274,32 @@ public partial class MainPage : ContentPage
             await DisplayAlert("Ошибка", "Пожалуйста, выберите сотрудника", "OK");
         }
     }
-    internal void DeleteAllFiles(object sender, EventArgs e)
+
+    private async void DeleteAllFiles(object sender, EventArgs e)
     {
-        File.Delete(employeeListFilePath);
-        File.Delete(scheduleFilePath);
-        Console.WriteLine("Данные удалены");
-        LoadSchedule.IsVisible = false;
-        EmployeePicker.IsVisible = false;
-        Preferences.Clear();
-        Instruction2.IsVisible = false;
-        DeleteData.IsVisible = false;
-        DisplayMessage("Данные удалены, загрузитье файл повторно.");
+        bool confirm = await DisplayAlert("Подтверждение", "Вы действительно хотите удалить все данные?", "Да", "Нет");
+
+        if (confirm)
+        {
+            try
+            {
+                File.Delete(employeeListFilePath);
+                File.Delete(scheduleFilePath);
+                Preferences.Clear();
+
+                await AnimateBackToStep1UI();
+                await HideDeleteButton();
+                DisplayMessage("Все данные были удалены");
+            }
+            catch (Exception ex)
+            {
+                await DisplayAlert("Ошибка", $"Не удалось удалить данные: {ex.Message}", "OK");
+            }
+        }
+    }
+
+    private async void GoToSettings(object sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new SettingsPage());
     }
 }
