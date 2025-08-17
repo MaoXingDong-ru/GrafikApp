@@ -41,7 +41,7 @@
                     <Label x:Name="Transp3" BackgroundColor="Transparent"></Label>
 
                     <Button x:Name="LoadSchedule" 
-                            Text="Загрузить расписание" 
+                            Text="Показать расписание" 
                             Clicked="LoadScheduleForEmployeer"
                             HorizontalOptions="FillAndExpand"
                             BackgroundColor="#191968"

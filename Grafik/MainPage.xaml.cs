@@ -1,6 +1,7 @@
 ﻿using ClosedXML.Excel;
 using Microsoft.Maui.Storage;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 
 namespace Grafik;
@@ -180,7 +181,7 @@ public partial class MainPage : ContentPage
     {
         int endRow = startRow + count;
         int lastProcessedRow = startRow;
-        var ExclusionWords = new[] { "отпуск", "замещает", "Игорь", "Ангелина" };
+        var exclusionWords = new[] { "отпуск", "замещает", "Игорь", "Ангелина", "выходной" };
 
         for (int row = startRow; row < endRow; row++)
         {
@@ -196,9 +197,9 @@ public partial class MainPage : ContentPage
                 var dayShift = worksheet.Cell(row, col).GetString().Trim();
                 var nightShift = worksheet.Cell(row, col + 1).GetString().Trim();
 
-                bool shouldExclude = ExclusionWords.Any(keyword =>
-                dayShift.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                nightShift.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0);
+                bool shouldExclude = exclusionWords.Any(keyword =>
+                    dayShift.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    nightShift.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0);
 
                 if (!shouldExclude && (!string.IsNullOrWhiteSpace(dayShift) || !string.IsNullOrWhiteSpace(nightShift)))
                 {
@@ -207,7 +208,7 @@ public partial class MainPage : ContentPage
                         Employees = name,
                         Date = date,
                         Shift = $"{(string.IsNullOrEmpty(dayShift) ? "" : "Дневная")} {(string.IsNullOrEmpty(nightShift) ? "" : "Ночная")}".Trim(),
-                        Worktime = $"{(string.IsNullOrEmpty(dayShift) ? "" : "09:00-21:00")} {(string.IsNullOrEmpty(nightShift) ? "" : "21:00-09:00")}".Trim(),
+                        Worktime = $"{(string.IsNullOrEmpty(dayShift) ? "" : GetLocalWorktime(true))} {(string.IsNullOrEmpty(nightShift) ? "" : GetLocalWorktime(false))}".Trim(),
                         IsSecondLine = isSecondLine
                     });
                 }
@@ -218,6 +219,37 @@ public partial class MainPage : ContentPage
 
         return lastProcessedRow;
     }
+
+    private static string GetLocalWorktime(bool isDayShift)
+    {
+        TimeZoneInfo moscowTimeZone = TimeZoneInfo.FindSystemTimeZoneById(
+        RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "Russian Standard Time" : "Europe/Moscow");
+
+        DateTime todayMoscow = TimeZoneInfo.ConvertTime(DateTime.UtcNow, TimeZoneInfo.Utc, moscowTimeZone).Date;
+
+        DateTime startMoscow, endMoscow;
+
+        if (isDayShift)
+        {
+            startMoscow = todayMoscow.AddHours(9);
+            endMoscow = todayMoscow.AddHours(21);
+        }
+        else
+        {
+            startMoscow = todayMoscow.AddHours(21);
+            endMoscow = todayMoscow.AddDays(1).AddHours(9);
+        }
+
+        // Указываем, что это время "Unspecified", чтобы ConvertTime знал, что оно из указанной ТЗ
+        startMoscow = DateTime.SpecifyKind(startMoscow, DateTimeKind.Unspecified);
+        endMoscow = DateTime.SpecifyKind(endMoscow, DateTimeKind.Unspecified);
+
+        DateTime startLocal = TimeZoneInfo.ConvertTime(startMoscow, moscowTimeZone, TimeZoneInfo.Local);
+        DateTime endLocal = TimeZoneInfo.ConvertTime(endMoscow, moscowTimeZone, TimeZoneInfo.Local);
+
+        return $"{startLocal:HH:mm}-{endLocal:HH:mm}";
+    }
+
 
     private void SaveEmployeesToJson(List<string> employees)
     {

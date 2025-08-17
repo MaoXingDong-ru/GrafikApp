@@ -9,7 +9,7 @@
             <Label Text="Количество сотрудников первой линии"/>
             
             <Entry x:Name="FirstLineCountEntry" 
-                   Keyboard="Numeric"/>
+                   Keyboard="Default"/>
 
             <StackLayout x:Name="SecondLineSettings" 
                          IsVisible="True">
@@ -17,10 +17,18 @@
                 <Label Text="Количество сотрудников второй линии"/>
                 
                 <Entry x:Name="SecondLineCountEntry" 
-                       Keyboard="Numeric"/>
+                       Keyboard="Default"/>
                 
             </StackLayout>
-            
+            <Label Text="Напоминание"/>
+            <Picker x:Name="ReminderPicker">
+                <Picker.Items>
+                    <x:String>За 15 минут</x:String>
+                    <x:String>За 1 час</x:String>
+                    <x:String>За 12 часов</x:String>
+                </Picker.Items>
+            </Picker>
+
             <Label x:Name="Transp" BackgroundColor="Transparent"></Label>
             
             <Button Text="Сохранить" 
