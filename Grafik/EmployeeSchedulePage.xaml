@@ -62,7 +62,7 @@
 
             <!-- Режим календарь -->
             <ScrollView x:Name="CalendarContainer" IsVisible="False" Opacity="0">
-                <CollectionView x:Name="CalendarView" SelectionMode="Single">
+                <CollectionView x:Name="CalendarView" SelectionMode="None">
                     <CollectionView.ItemsLayout>
                         <GridItemsLayout Orientation="Vertical" Span="7"/>
                     </CollectionView.ItemsLayout>
@@ -72,6 +72,10 @@
                                    BackgroundColor="{Binding TileColor}"
                                    BorderColor="{Binding BorderColor}"
                                    CornerRadius="8" HasShadow="True">
+                                <Frame.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnCalendarItemTapped" 
+                                                         CommandParameter="{Binding .}"/>
+                                </Frame.GestureRecognizers>
                                 <StackLayout>
                                     <Label Text="{Binding Date, StringFormat='{0:dd}'}"
                                            HorizontalOptions="Center"

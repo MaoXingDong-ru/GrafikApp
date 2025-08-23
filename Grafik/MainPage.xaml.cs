@@ -329,6 +329,26 @@ public partial class MainPage : ContentPage
             }
         }
     }
+    // В MainPage.xaml.cs
+    private void OnTestImmediateNotificationClicked(object sender, EventArgs e)
+    {
+#if ANDROID
+    Grafik.Services.NotificationService.ShowTestNotification();
+    DisplayAlert("Тест", "Мгновенное уведомление отправлено", "OK");
+#else
+        DisplayAlert("Тест", "Уведомления доступны только на Android", "OK");
+#endif
+    }
+
+    private void OnTestScheduledNotificationClicked(object sender, EventArgs e)
+    {
+#if ANDROID
+    Grafik.Services.NotificationService.ScheduleTestNotification();
+    DisplayAlert("Тест", "Уведомление запланировано на 10 секунд", "OK");
+#else
+        DisplayAlert("Тест", "Планирование доступно только на Android", "OK");
+#endif
+    }
 
     private async void GoToSettings(object sender, EventArgs e)
     {

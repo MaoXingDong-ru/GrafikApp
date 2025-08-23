@@ -27,8 +27,6 @@ namespace Grafik
 
             EmployeeNameLabel.Text = employeeName;
 
-
-
             // спрятать встроенный текст On/Off у Switch на Android
             ViewSwitch.HandlerChanged += (_, __) =>
             {
@@ -39,12 +37,12 @@ namespace Grafik
                     sw.TextOn = string.Empty;
                     sw.TextOff = string.Empty;
                 }
-                #elif WINDOWS
-    if (ViewSwitch.Handler?.PlatformView is Microsoft.UI.Xaml.Controls.ToggleSwitch winSwitch)
-    {
-        winSwitch.OnContent = "";    // Убираем "On"
-        winSwitch.OffContent = "";   // Убираем "Off"
-    }
+#elif WINDOWS
+                if (ViewSwitch.Handler?.PlatformView is Microsoft.UI.Xaml.Controls.ToggleSwitch winSwitch)
+                {
+                    winSwitch.OnContent = "";    // Убираем "On"
+                    winSwitch.OffContent = "";   // Убираем "Off"
+                }
 #endif
             };
 
@@ -55,21 +53,30 @@ namespace Grafik
                 await AnimateSwitchAsync(e.Value);
             };
 
-
-            CalendarView.SelectionChanged += async (s, e) =>
-            {
-                if (e.CurrentSelection.FirstOrDefault() is ShiftEntry shift &&
-                    !string.IsNullOrWhiteSpace(shift.Shift))
-                {
-                    await DisplayAlert(
-                        $"{shift.Date:dd MMMM} — {shift.Shift}",
-                        BuildPopupText(shift),
-                        "OK"
-                    );
-                }
-            };
+            // Убрали старый обработчик SelectionChanged
+            // CalendarView.SelectionChanged += async (s, e) => { ... };
 
             LoadEmployeeScheduleAsync(employeeName);
+        }
+
+        private async void OnCalendarItemTapped(object sender, EventArgs e)
+        {
+            if (sender is Frame frame && frame.BindingContext is ShiftEntry shift)
+            {
+                await HandleShiftSelection(shift);
+            }
+        }
+
+        private async Task HandleShiftSelection(ShiftEntry shift)
+        {
+            if (!string.IsNullOrWhiteSpace(shift.Shift))
+            {
+                await DisplayAlert(
+                    $"{shift.Date:dd MMMM} — {shift.Shift}",
+                    BuildPopupText(shift),
+                    "OK"
+                );
+            }
         }
 
         private async System.Threading.Tasks.Task AnimateSwitchAsync(bool toCalendar)
@@ -115,8 +122,8 @@ namespace Grafik
 
                 var today = DateTime.Today;
 
-                foreach (var e in employeeSchedule)
-                    e.BorderColor = e.Date.Date == today ? Colors.Green : Colors.Transparent;
+                foreach (var entry in employeeSchedule)
+                    entry.BorderColor = entry.Date.Date == today ? Colors.Green : Colors.Transparent;
 
                 var daysInMonth = DateTime.DaysInMonth(today.Year, today.Month);
                 var calendarDays = new List<ShiftEntry>();

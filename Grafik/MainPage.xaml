@@ -55,6 +55,14 @@
             </StackLayout>
         </ScrollView>
 
+        <Button Text="Тест мгновенного уведомления" 
+        Clicked="OnTestImmediateNotificationClicked"
+        Margin="0,250,0,0" IsEnabled="False" IsVisible="False"/>
+
+        <Button Text="Тест планирования уведомления" 
+        Clicked="OnTestScheduledNotificationClicked"
+        Margin="0,200,0,0" IsEnabled="False" IsVisible="False"/>
+
         <!-- Кнопка настроек -->
         <Button x:Name="SettingsButton"
                 Text="⚙"
