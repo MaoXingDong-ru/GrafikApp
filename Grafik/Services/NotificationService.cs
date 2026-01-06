@@ -39,54 +39,91 @@ namespace Grafik.Services
 
         public static void ScheduleNotification(string title, string message, DateTime notifyTime)
         {
-            if (notifyTime <= DateTime.Now) return;
+            if (notifyTime <= DateTime.Now)
+            {
+                Console.WriteLine($"Время уведомления в прошлом: {notifyTime}");
+                return;
+            }
 
 #if ANDROID
-            CreateNotificationChannel();
-            
-            var context = Android.App.Application.Context;
-            
-            DateTime utcNotifyTime = notifyTime.ToUniversalTime();
-            long triggerMillis = (long)(utcNotifyTime - DateTime.UtcNow).TotalMilliseconds;
-
-            int notificationId = new Random().Next(1000, 9999);
-
-            var intent = new Intent(context, typeof(AlarmReceiver));
-            intent.PutExtra("title", title);
-            intent.PutExtra("message", message);
-            intent.PutExtra("notification_id", notificationId);
-
-            var pendingIntent = PendingIntent.GetBroadcast(
-                context,
-                notificationId,
-                intent,
-                PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable);
-
-            var alarmManager = (AlarmManager)context.GetSystemService(Context.AlarmService);
-            
-            if (alarmManager != null)
+            try
             {
-                if (Build.VERSION.SdkInt >= BuildVersionCodes.M)
+                CreateNotificationChannel();
+                
+                var context = Android.App.Application.Context;
+                
+                long triggerMillis = (long)(notifyTime - DateTime.Now).TotalMilliseconds;
+
+                // Используем хеш для создания уникального requestCode
+                int notificationId = (title + message + notifyTime.Ticks).GetHashCode() & 0x7FFFFFFF;
+
+                var intent = new Intent(context, typeof(AlarmReceiver));
+                intent.SetAction("android.intent.action.ALARM");
+                intent.PutExtra("title", title);
+                intent.PutExtra("message", message);
+                intent.PutExtra("notification_id", notificationId);
+
+                var pendingIntent = PendingIntent.GetBroadcast(
+                    context,
+                    notificationId,
+                    intent,
+                    PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable);
+
+                var alarmManager = (AlarmManager)context.GetSystemService(Context.AlarmService);
+                
+                if (alarmManager != null)
                 {
-                    alarmManager.SetExactAndAllowWhileIdle(
-                        AlarmType.RtcWakeup,
-                        Java.Lang.JavaSystem.CurrentTimeMillis() + triggerMillis,
-                        pendingIntent);
+                    long triggerAtMillis = Java.Lang.JavaSystem.CurrentTimeMillis() + triggerMillis;
+                    
+                    if (Build.VERSION.SdkInt >= BuildVersionCodes.S)
+                    {
+                        // Android 12+
+                        if (alarmManager.CanScheduleExactAlarms())
+                        {
+                            alarmManager.SetExactAndAllowWhileIdle(
+                                AlarmType.RtcWakeup,
+                                triggerAtMillis,
+                                pendingIntent);
+                        }
+                        else
+                        {
+                            alarmManager.SetAndAllowWhileIdle(
+                                AlarmType.RtcWakeup,
+                                triggerAtMillis,
+                                pendingIntent);
+                        }
+                    }
+                    else if (Build.VERSION.SdkInt >= BuildVersionCodes.M)
+                    {
+                        // Android 6+
+                        alarmManager.SetExactAndAllowWhileIdle(
+                            AlarmType.RtcWakeup,
+                            triggerAtMillis,
+                            pendingIntent);
+                    }
+                    else if (Build.VERSION.SdkInt >= BuildVersionCodes.Kitkat)
+                    {
+                        // Android 4.4+
+                        alarmManager.SetExact(
+                            AlarmType.RtcWakeup,
+                            triggerAtMillis,
+                            pendingIntent);
+                    }
+                    else
+                    {
+                        // Older Android
+                        alarmManager.Set(
+                            AlarmType.RtcWakeup,
+                            triggerAtMillis,
+                            pendingIntent);
+                    }
+                    
+                    Console.WriteLine($"Уведомление запланировано: {title} на {notifyTime} (через {triggerMillis}ms)");
                 }
-                else if (Build.VERSION.SdkInt >= BuildVersionCodes.Kitkat)
-                {
-                    alarmManager.SetExact(
-                        AlarmType.RtcWakeup,
-                        Java.Lang.JavaSystem.CurrentTimeMillis() + triggerMillis,
-                        pendingIntent);
-                }
-                else
-                {
-                    alarmManager.Set(
-                        AlarmType.RtcWakeup,
-                        Java.Lang.JavaSystem.CurrentTimeMillis() + triggerMillis,
-                        pendingIntent);
-                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка планирования уведомления: {ex.Message}\n{ex.StackTrace}");
             }
 
 #elif WINDOWS
@@ -123,18 +160,15 @@ namespace Grafik.Services
 
             try
             {
-                // Более надежный парсинг времени
                 var timeParts = entry.Worktime.Split('-');
                 if (timeParts.Length == 0) return;
 
                 string startTimeString = timeParts[0].Trim();
 
-                // Пробуем разные форматы времени
                 if (TryParseTime(startTimeString, out TimeSpan startTime))
                 {
                     DateTime shiftStart = entry.Date.Date + startTime;
 
-                    // Проверяем, что смена в будущем (с запасом +1 день на случай ночных смен)
                     if (shiftStart <= DateTime.Now.AddDays(-1))
                         return;
 
@@ -194,36 +228,51 @@ namespace Grafik.Services
         public static void ShowTestNotification()
         {
 #if ANDROID
-    CreateNotificationChannel();
-    
-    var context = Android.App.Application.Context;
-    int notificationId = new Random().Next(1000, 9999);
+            try
+            {
+                CreateNotificationChannel();
+                
+                var context = Android.App.Application.Context;
+                int notificationId = new Random().Next(1000, 9999);
 
-    var notificationBuilder = new NotificationCompat.Builder(context, CHANNEL_ID)
-        .SetContentTitle("Тестовое уведомление")
-        .SetContentText("Проверка работы уведомлений")
-        .SetAutoCancel(true)
-        .SetSmallIcon(Android.Resource.Drawable.IcDialogInfo)
-        .SetPriority(NotificationCompat.PriorityHigh);
+                var notificationBuilder = new NotificationCompat.Builder(context, CHANNEL_ID)
+                    .SetContentTitle("Тестовое уведомление")
+                    .SetContentText("Проверка работы уведомлений")
+                    .SetAutoCancel(true)
+                    .SetSmallIcon(Android.Resource.Drawable.IcDialogInfo)
+                    .SetPriority(NotificationCompat.PriorityHigh);
 
-    var notificationManager = NotificationManagerCompat.From(context);
-    notificationManager.Notify(notificationId, notificationBuilder.Build());
+                var notificationManager = NotificationManagerCompat.From(context);
+                notificationManager.Notify(notificationId, notificationBuilder.Build());
+                
+                Console.WriteLine("Мгновенное уведомление отправлено");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка при отправке уведомления: {ex.Message}");
+            }
 #endif
         }
+
         public static void ScheduleTestNotification()
         {
 #if ANDROID
-    // Планируем уведомление через 10 секунд
-    DateTime testTime = DateTime.Now.AddSeconds(10);
-    
-    ScheduleNotification(
-        "Тестовое уведомление",
-        "Проверка планирования уведомлений",
-        testTime);
-    
-    Console.WriteLine($"Тестовое уведомление запланировано на {testTime}");
+            try
+            {
+                DateTime testTime = DateTime.Now.AddSeconds(10);
+                
+                ScheduleNotification(
+                    "Тестовое уведомление",
+                    "Проверка планирования уведомлений",
+                    testTime);
+                
+                Console.WriteLine($"Тестовое уведомление запланировано на {testTime}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка при планировании уведомления: {ex.Message}");
+            }
 #endif
         }
     }
-
 }
