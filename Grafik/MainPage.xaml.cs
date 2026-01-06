@@ -71,15 +71,8 @@ public partial class MainPage : ContentPage
     private async Task ProcessExcelFile(string filePath)
     {
         var fileBytes = File.ReadAllBytes(filePath);
-        var settings = LoadSettings();
 
-        if (settings?.EmployeeCount <= 0)
-        {
-            DisplayMessage("Настройки не заданы. Откройте страницу настроек.");
-            return;
-        }
-
-        var schedule = ExtractScheduleFromExcel(fileBytes, settings);
+        var schedule = ExtractScheduleFromExcel(fileBytes);
         SaveScheduleToJson(schedule);
 
         var uniqueEmployees = schedule.Select(s => s.Employees).Distinct().ToList();
@@ -132,28 +125,136 @@ public partial class MainPage : ContentPage
         DeleteData.IsVisible = false;
     }
 
-    public static List<ShiftEntry> ExtractScheduleFromExcel(byte[] fileData, AppSettings settings)
+    public static List<ShiftEntry> ExtractScheduleFromExcel(byte[] fileData)
     {
         var result = new List<ShiftEntry>();
         using var stream = new MemoryStream(fileData);
         using var workbook = new XLWorkbook(stream);
         var worksheet = workbook.Worksheet(1);
 
-        var invalidNames = new HashSet<string> { "дата", "время", "date", "time", "", null };
+        var invalidNames = new HashSet<string>
+        {
+            "дата", "время", "date", "time", "",
+            "архипов дмитрий", "бруснигин антон" // Исключаем зарубежную техподдержку
+        };
+
         var dayColumns = GetValidDayColumns(worksheet);
 
+        // Автоматически определяем количество сотрудников
+        var (firstLineCount, secondLineCount, secondLineStartRow) = DetectEmployeeCounts(worksheet);
+
         int startRowFirstLine = 4;
-        int firstLineEndRow = ProcessEmployeeGroup(worksheet, startRowFirstLine, settings.EmployeeCount,
+        int firstLineEndRow = ProcessEmployeeGroup(worksheet, startRowFirstLine, firstLineCount,
                                                  result, invalidNames, false, dayColumns);
 
-        if (settings.HasSecondLineEmployees || settings.SecondLineEmployeeCount > 0)
+        if (secondLineCount > 0)
         {
-            int startRowSecondLine = firstLineEndRow + 4;
-            ProcessEmployeeGroup(worksheet, startRowSecondLine, settings.SecondLineEmployeeCount,
+            // Используем реально найденную строку начала второй линии
+            ProcessEmployeeGroup(worksheet, secondLineStartRow, secondLineCount,
                                result, invalidNames, true, dayColumns);
         }
 
+        Console.WriteLine($"Обнаружено: первая линия = {firstLineCount}, вторая линия = {secondLineCount}, начало второй линии = {secondLineStartRow}");
+
         return result;
+    }
+
+    /// <summary>
+    /// Автоматически определяет количество сотрудников первой и второй линии
+    /// </summary>
+    private static (int firstLineCount, int secondLineCount, int secondLineStartRow) DetectEmployeeCounts(IXLWorksheet worksheet)
+    {
+        const int startRow = 4;
+        var invalidNames = new HashSet<string> 
+        { 
+            "дата", "время", "date", "time", "",
+            "архипов дмитрий", "бруснигин антон" // Исключаем зарубежную техподдержку
+        };
+
+        int firstLineCount = 0;
+        int secondLineCount = 0;
+        int secondLineStartRow = 0;
+        int currentRow = startRow;
+        bool foundFirstLine = false;
+        bool foundGap = false;
+        int emptyRowsCount = 0;
+        const int emptyRowsThreshold = 2; // Если подряд 2+ пустые строки - это разделитель
+        
+        var lastUsedCell = worksheet.LastRowUsed();
+        if (lastUsedCell == null)
+            return (0, 0, 0);
+
+        int lastRow = lastUsedCell.RowNumber();
+
+        // Ищем первую линию и её длину
+        while (currentRow <= lastRow)
+        {
+            var nameCell = worksheet.Cell(currentRow, 1);
+            string rawName = nameCell.GetString().Trim().ToLower();
+
+            if (string.IsNullOrWhiteSpace(rawName) || invalidNames.Contains(rawName))
+            {
+                emptyRowsCount++;
+                
+                // Если мы уже нашли первую линию и встретили достаточно пустых строк
+                if (foundFirstLine && !foundGap && emptyRowsCount >= emptyRowsThreshold)
+                {
+                    foundGap = true;
+                    currentRow++;
+                    // Пропускаем пропуск между линиями
+                    while (currentRow <= lastRow)
+                    {
+                        string nextName = worksheet.Cell(currentRow, 1).GetString().Trim().ToLower();
+                        if (string.IsNullOrWhiteSpace(nextName) || invalidNames.Contains(nextName))
+                        {
+                            currentRow++;
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                    // Теперь currentRow указывает на начало второй линии
+                    secondLineStartRow = currentRow;
+                    break;
+                }
+                currentRow++;
+            }
+            else
+            {
+                emptyRowsCount = 0; // Сбрасываем счётчик пустых строк
+                foundFirstLine = true;
+                firstLineCount++;
+                currentRow++;
+            }
+        }
+
+        // Считаем вторую линию
+        while (currentRow <= lastRow)
+        {
+            var nameCell = worksheet.Cell(currentRow, 1);
+            string rawName = nameCell.GetString().Trim().ToLower();
+
+            if (!string.IsNullOrWhiteSpace(rawName) && !invalidNames.Contains(rawName))
+            {
+                secondLineCount++;
+                currentRow++;
+            }
+            else if (!string.IsNullOrWhiteSpace(rawName) && invalidNames.Contains(rawName))
+            {
+                // Пропускаем исключённых сотрудников (зарубежную поддержку)
+                currentRow++;
+            }
+            else
+            {
+                // Если встретили полностью пустую строку
+                break;
+            }
+        }
+
+        Console.WriteLine($"DetectEmployeeCounts: первая линия = {firstLineCount}, вторая линия = {secondLineCount}, начало второй = {secondLineStartRow}");
+
+        return (firstLineCount, secondLineCount, secondLineStartRow);
     }
 
     private static List<(int ColumnIndex, DateTime Date)> GetValidDayColumns(IXLWorksheet worksheet)
@@ -181,7 +282,7 @@ public partial class MainPage : ContentPage
     {
         int endRow = startRow + count;
         int lastProcessedRow = startRow;
-        var exclusionWords = new[] { "отпуск", "замещает", "Игорь", "Ангелина", "выходной" };
+        var exclusionWords = new[] { "отпуск", "замещает", "выходной" };
 
         for (int row = startRow; row < endRow; row++)
         {
@@ -240,7 +341,6 @@ public partial class MainPage : ContentPage
             endMoscow = todayMoscow.AddDays(1).AddHours(9);
         }
 
-        // Указываем, что это время "Unspecified", чтобы ConvertTime знал, что оно из указанной ТЗ
         startMoscow = DateTime.SpecifyKind(startMoscow, DateTimeKind.Unspecified);
         endMoscow = DateTime.SpecifyKind(endMoscow, DateTimeKind.Unspecified);
 
@@ -249,7 +349,6 @@ public partial class MainPage : ContentPage
 
         return $"{startLocal:HH:mm}-{endLocal:HH:mm}";
     }
-
 
     private void SaveEmployeesToJson(List<string> employees)
     {
@@ -329,7 +428,7 @@ public partial class MainPage : ContentPage
             }
         }
     }
-    // В MainPage.xaml.cs
+
     private void OnTestImmediateNotificationClicked(object sender, EventArgs e)
     {
 #if ANDROID
