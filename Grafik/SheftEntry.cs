@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using Microsoft.Maui.Graphics; // для Color
+using Microsoft.Maui.Graphics;
 
 namespace Grafik
 {
@@ -21,5 +21,8 @@ namespace Grafik
         // Для календаря
         public Color TileColor { get; set; } = Colors.Transparent; // Цвет плитки по типу смены
         public Color BorderColor { get; set; } = Colors.Transparent; // Цвет обводки (сегодняшний день)
+
+        // Видимость дня в календаре (false для пустых ячеек в начале месяца)
+        public bool IsVisibleDay { get; set; } = true;
     }
 }

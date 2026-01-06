@@ -40,21 +40,17 @@ namespace Grafik
 #elif WINDOWS
                 if (ViewSwitch.Handler?.PlatformView is Microsoft.UI.Xaml.Controls.ToggleSwitch winSwitch)
                 {
-                    winSwitch.OnContent = "";    // Убираем "On"
-                    winSwitch.OffContent = "";   // Убираем "Off"
+                    winSwitch.OnContent = "";
+                    winSwitch.OffContent = "";
                 }
 #endif
             };
 
             ViewSwitch.Toggled += async (s, e) =>
             {
-                // Сохраняем режим: true = календарь, false = список
                 Preferences.Set(ViewModeKey, e.Value);
                 await AnimateSwitchAsync(e.Value);
             };
-
-            // Убрали старый обработчик SelectionChanged
-            // CalendarView.SelectionChanged += async (s, e) => { ... };
 
             LoadEmployeeScheduleAsync(employeeName);
         }
@@ -113,41 +109,68 @@ namespace Grafik
                 var json = await File.ReadAllTextAsync(filePath);
                 var allSchedule = JsonSerializer.Deserialize<List<ShiftEntry>>(json) ?? new();
 
-                var employeeSchedule = allSchedule
+                _employeeSchedule = allSchedule
                     .Where(e => e.Employees == employeeName)
                     .OrderBy(e => e.Date)
                     .ToList();
 
-                EnrichWithColleaguesInfo(allSchedule, employeeSchedule, employeeName);
+                EnrichWithColleaguesInfo(allSchedule, _employeeSchedule, employeeName);
 
                 var today = DateTime.Today;
 
-                foreach (var entry in employeeSchedule)
+                foreach (var entry in _employeeSchedule)
                     entry.BorderColor = entry.Date.Date == today ? Colors.Green : Colors.Transparent;
 
-                var daysInMonth = DateTime.DaysInMonth(today.Year, today.Month);
-                var calendarDays = new List<ShiftEntry>();
+                ScheduleListView.ItemsSource = _employeeSchedule;
 
-                for (int d = 1; d <= daysInMonth; d++)
+                // Определяем месяц и год на основе первой записи в расписании
+                DateTime monthToDisplay = today;
+                if (_employeeSchedule.Count > 0)
                 {
-                    var date = new DateTime(today.Year, today.Month, d);
-                    var shift = employeeSchedule.FirstOrDefault(s => s.Date.Date == date);
-
-                    var day = shift ?? new ShiftEntry { Date = date };
-                    day.TileColor = GetTileColorForShift(day.Shift);
-                    day.BorderColor = date == today ? Colors.Green : Colors.Transparent;
-
-                    calendarDays.Add(day);
+                    monthToDisplay = _employeeSchedule.First().Date;
                 }
 
-                ScheduleListView.ItemsSource = employeeSchedule;
-                CalendarView.ItemsSource = calendarDays;
+                GenerateCalendarForMonth(monthToDisplay, today);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Ошибка при загрузке расписания: {ex.Message}");
                 await DisplayAlert("Ошибка", "Произошла ошибка при загрузке данных.", "OK");
             }
+        }
+
+        private void GenerateCalendarForMonth(DateTime monthDate, DateTime today)
+        {
+            var daysInMonth = DateTime.DaysInMonth(monthDate.Year, monthDate.Month);
+            var firstDayOfMonth = new DateTime(monthDate.Year, monthDate.Month, 1);
+            var firstDayOfWeek = (int)firstDayOfMonth.DayOfWeek;
+
+            // Смещение для учёта стартового дня недели (понедельник = 1, воскресенье = 0)
+            var daysBeforeMonthStarts = (firstDayOfWeek + 6) % 7;
+
+            var calendarDays = new List<ShiftEntry>();
+
+            // Добавляем пустые ячейки для дней до начала месяца
+            for (int i = 0; i < daysBeforeMonthStarts; i++)
+            {
+                calendarDays.Add(new ShiftEntry { Date = DateTime.MinValue, IsVisibleDay = false });
+            }
+
+            // Добавляем дни месяца
+            for (int d = 1; d <= daysInMonth; d++)
+            {
+                var date = new DateTime(monthDate.Year, monthDate.Month, d);
+                var shift = _employeeSchedule.FirstOrDefault(s => s.Date.Date == date);
+
+                var day = shift ?? new ShiftEntry { Date = date, IsVisibleDay = true };
+                day.TileColor = GetTileColorForShift(day.Shift);
+                day.BorderColor = date == today ? Colors.Green : Colors.Transparent;
+                day.IsVisibleDay = true;
+
+                calendarDays.Add(day);
+            }
+
+            CalendarView.ItemsSource = calendarDays;
         }
 
         private static Color GetTileColorForShift(string? shift)

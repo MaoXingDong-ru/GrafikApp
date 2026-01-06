@@ -62,32 +62,47 @@
 
             <!-- Режим календарь -->
             <ScrollView x:Name="CalendarContainer" IsVisible="False" Opacity="0">
-                <CollectionView x:Name="CalendarView" SelectionMode="None">
-                    <CollectionView.ItemsLayout>
-                        <GridItemsLayout Orientation="Vertical" Span="7"/>
-                    </CollectionView.ItemsLayout>
-                    <CollectionView.ItemTemplate>
-                        <DataTemplate>
-                            <Frame Padding="5" Margin="2"
-                                   BackgroundColor="{Binding TileColor}"
-                                   BorderColor="{Binding BorderColor}"
-                                   CornerRadius="8" HasShadow="True">
-                                <Frame.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnCalendarItemTapped" 
-                                                         CommandParameter="{Binding .}"/>
-                                </Frame.GestureRecognizers>
-                                <StackLayout>
-                                    <Label Text="{Binding Date, StringFormat='{0:dd}'}"
-                                           HorizontalOptions="Center"
-                                           FontSize="18"
-                                           FontAttributes="Bold"/>
-                                    <Label Text="{Binding Shift}" FontSize="10"
-                                           HorizontalOptions="Center"/>
-                                </StackLayout>
-                            </Frame>
-                        </DataTemplate>
-                    </CollectionView.ItemTemplate>
-                </CollectionView>
+                <StackLayout Spacing="0">
+                    <!-- Заголовок с днями недели -->
+                    <Grid ColumnDefinitions="*,*,*,*,*,*,*" RowDefinitions="40">
+                        <Label Text="Пн" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center"/>
+                        <Label Text="Вт" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" Grid.Column="1"/>
+                        <Label Text="Ср" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" Grid.Column="2"/>
+                        <Label Text="Чт" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" Grid.Column="3"/>
+                        <Label Text="Пт" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" Grid.Column="4"/>
+                        <Label Text="Сб" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" Grid.Column="5"/>
+                        <Label Text="Вс" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" Grid.Column="6"/>
+                    </Grid>
+
+                    <!-- Календарь -->
+                    <CollectionView x:Name="CalendarView" SelectionMode="None">
+                        <CollectionView.ItemsLayout>
+                            <GridItemsLayout Orientation="Vertical" Span="7"/>
+                        </CollectionView.ItemsLayout>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Frame Padding="5" Margin="2"
+                                       BackgroundColor="{Binding TileColor}"
+                                       BorderColor="{Binding BorderColor}"
+                                       CornerRadius="8" HasShadow="True"
+                                       IsVisible="{Binding IsVisibleDay}">
+                                    <Frame.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnCalendarItemTapped" 
+                                                             CommandParameter="{Binding .}"/>
+                                    </Frame.GestureRecognizers>
+                                    <StackLayout>
+                                        <Label Text="{Binding Date, StringFormat='{0:dd}'}"
+                                               HorizontalOptions="Center"
+                                               FontSize="18"
+                                               FontAttributes="Bold"/>
+                                        <Label Text="{Binding Shift}" FontSize="10"
+                                               HorizontalOptions="Center"/>
+                                    </StackLayout>
+                                </Frame>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </StackLayout>
             </ScrollView>
         </Grid>
     </Grid>
