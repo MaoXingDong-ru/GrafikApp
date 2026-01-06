@@ -21,8 +21,6 @@ public partial class SettingsPage : ContentPage
 
             if (settings != null)
             {
-                FirstLineCountEntry.Text = settings.EmployeeCount.ToString();
-                SecondLineCountEntry.Text = settings.SecondLineEmployeeCount.ToString();
                 ReminderPicker.SelectedIndex = (int)settings.Reminder; // устанавливаем выбранное напоминание
             }
         }
@@ -30,25 +28,10 @@ public partial class SettingsPage : ContentPage
 
     private void OnSaveSettingsClicked(object sender, EventArgs e)
     {
-        if (!int.TryParse(FirstLineCountEntry.Text, out int firstLineCount) || firstLineCount <= 0)
-        {
-            DisplayAlert("Ошибка", "Введите корректное количество сотрудников первой линии", "OK");
-            return;
-        }
-
-        int secondLineCount = 0;
-        if (!int.TryParse(SecondLineCountEntry.Text, out secondLineCount) || secondLineCount <= 0)
-        {
-            DisplayAlert("Ошибка", "Введите корректное количество сотрудников второй линии", "OK");
-            return;
-        }
-
         var selectedReminder = (ReminderOption)ReminderPicker.SelectedIndex;
 
         var settings = new AppSettings
         {
-            EmployeeCount = firstLineCount,
-            SecondLineEmployeeCount = secondLineCount,
             Reminder = selectedReminder
         };
 
@@ -61,8 +44,5 @@ public partial class SettingsPage : ContentPage
 
 public class AppSettings
 {
-    public int EmployeeCount { get; set; }
-    public int SecondLineEmployeeCount { get; set; }
-    public bool HasSecondLineEmployees { get; set; }
     public ReminderOption Reminder { get; set; }
 }
