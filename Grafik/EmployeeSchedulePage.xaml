@@ -2,108 +2,127 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Grafik.EmployeeSchedulePage">
 
-    <Grid Padding="10" RowDefinitions="Auto,*">
-        <!-- Верхняя панель -->
-        <Grid ColumnDefinitions="*,Auto" Row="0" VerticalOptions="Center">
-            <Label x:Name="EmployeeNameLabel" FontSize="24"
-                   VerticalOptions="Center"
-                   HorizontalOptions="Start" />
+    <AbsoluteLayout>
+        <!-- Основной контент -->
+        <Grid Padding="10" RowDefinitions="Auto,*" 
+              AbsoluteLayout.LayoutBounds="0,0,1,1"
+              AbsoluteLayout.LayoutFlags="All">
+            <!-- Верхняя панель -->
+            <Grid ColumnDefinitions="*,Auto" Row="0" VerticalOptions="Center" ColumnSpacing="10">
+                <Label x:Name="EmployeeNameLabel" FontSize="24"
+                       VerticalOptions="Center"
+                       HorizontalOptions="Start" />
 
-            <StackLayout Orientation="Horizontal" Spacing="10"
-                         VerticalOptions="Center" HorizontalOptions="End">
-                <Label Text="Список" VerticalOptions="Center"/>
-                <Switch x:Name="ViewSwitch" VerticalOptions="Center" />
-                <Label Text="Таблица" VerticalOptions="Center"/>
-            </StackLayout>
-        </Grid>
+                <StackLayout Orientation="Horizontal" Spacing="10" Grid.Column="1"
+                             VerticalOptions="Center" HorizontalOptions="End">
+                    <Label Text="Список" VerticalOptions="Center"/>
+                    <Switch x:Name="ViewSwitch" VerticalOptions="Center" />
+                    <Label Text="Таблица" VerticalOptions="Center"/>
+                </StackLayout>
+            </Grid>
 
-        <!-- Контент -->
-        <Grid Row="1">
-            <!-- Режим список -->
-            <ScrollView x:Name="ListContainer" IsVisible="True" Opacity="1">
-                <CollectionView x:Name="ScheduleListView">
-                    <CollectionView.ItemTemplate>
-                        <DataTemplate>
-                            <Frame Padding="10"
-                                   Margin="5"
-                                   HasShadow="True"
-                                   BorderColor="{Binding BorderColor}">
-                                <StackLayout>
-                                    <Label Text="{Binding Date, StringFormat='{0:D}  ({0:ddd})'}"
-                                           FontAttributes="Bold"/>
-                                    <Label Text="{Binding Worktime}" FontAttributes="Bold"/>
-                                    <Label Text="{Binding Shift}" />
-                                    <Label Text="{Binding Employees}" />
-                                    <Label Text="{Binding DisplayOtherEmployees}"
-                                           FontSize="12"
-                                           TextColor="Gray" />
-                                    <Label Text="{Binding SecondLinePartner}"
-                                           FontAttributes="Italic"
-                                           TextColor="Green">
-                                        <Label.Triggers>
-                                            <DataTrigger TargetType="Label"
-                                                         Binding="{Binding SecondLinePartner}"
-                                                         Value="{x:Null}">
-                                                <Setter Property="IsVisible" Value="False"/>
-                                            </DataTrigger>
-                                            <DataTrigger TargetType="Label"
-                                                         Binding="{Binding SecondLinePartner}"
-                                                         Value="">
-                                                <Setter Property="IsVisible" Value="False"/>
-                                            </DataTrigger>
-                                        </Label.Triggers>
-                                    </Label>
-                                </StackLayout>
-                            </Frame>
-                        </DataTemplate>
-                    </CollectionView.ItemTemplate>
-                </CollectionView>
-            </ScrollView>
-
-            <!-- Режим календарь -->
-            <ScrollView x:Name="CalendarContainer" IsVisible="False" Opacity="0">
-                <StackLayout Spacing="0">
-                    <!-- Заголовок с днями недели -->
-                    <Grid ColumnDefinitions="*,*,*,*,*,*,*" RowDefinitions="40">
-                        <Label Text="Пн" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center"/>
-                        <Label Text="Вт" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" Grid.Column="1"/>
-                        <Label Text="Ср" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" Grid.Column="2"/>
-                        <Label Text="Чт" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" Grid.Column="3"/>
-                        <Label Text="Пт" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" Grid.Column="4"/>
-                        <Label Text="Сб" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" Grid.Column="5"/>
-                        <Label Text="Вс" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" Grid.Column="6"/>
-                    </Grid>
-
-                    <!-- Календарь -->
-                    <CollectionView x:Name="CalendarView" SelectionMode="None">
-                        <CollectionView.ItemsLayout>
-                            <GridItemsLayout Orientation="Vertical" Span="7"/>
-                        </CollectionView.ItemsLayout>
+            <!-- Контент -->
+            <Grid Row="1">
+                <!-- Режим список -->
+                <ScrollView x:Name="ListContainer" IsVisible="True" Opacity="1">
+                    <CollectionView x:Name="ScheduleListView">
                         <CollectionView.ItemTemplate>
                             <DataTemplate>
-                                <Frame Padding="5" Margin="2"
-                                       BackgroundColor="{Binding TileColor}"
-                                       BorderColor="{Binding BorderColor}"
-                                       CornerRadius="8" HasShadow="True"
-                                       IsVisible="{Binding IsVisibleDay}">
-                                    <Frame.GestureRecognizers>
-                                        <TapGestureRecognizer Tapped="OnCalendarItemTapped" 
-                                                             CommandParameter="{Binding .}"/>
-                                    </Frame.GestureRecognizers>
+                                <Frame Padding="10"
+                                       Margin="5"
+                                       HasShadow="True"
+                                       BorderColor="{Binding BorderColor}">
                                     <StackLayout>
-                                        <Label Text="{Binding Date, StringFormat='{0:dd}'}"
-                                               HorizontalOptions="Center"
-                                               FontSize="18"
+                                        <Label Text="{Binding Date, StringFormat='{0:D}  ({0:ddd})'}"
                                                FontAttributes="Bold"/>
-                                        <Label Text="{Binding Shift}" FontSize="10"
-                                               HorizontalOptions="Center"/>
+                                        <Label Text="{Binding Worktime}" FontAttributes="Bold"/>
+                                        <Label Text="{Binding Shift}" />
+                                        <Label Text="{Binding Employees}" />
+                                        <Label Text="{Binding DisplayOtherEmployees}"
+                                               FontSize="12"
+                                               TextColor="Gray" />
+                                        <Label Text="{Binding SecondLinePartner}"
+                                               FontAttributes="Italic"
+                                               TextColor="Green">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label"
+                                                             Binding="{Binding SecondLinePartner}"
+                                                             Value="{x:Null}">
+                                                    <Setter Property="IsVisible" Value="False"/>
+                                                </DataTrigger>
+                                                <DataTrigger TargetType="Label"
+                                                             Binding="{Binding SecondLinePartner}"
+                                                             Value="">
+                                                    <Setter Property="IsVisible" Value="False"/>
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
                                     </StackLayout>
                                 </Frame>
                             </DataTemplate>
                         </CollectionView.ItemTemplate>
                     </CollectionView>
-                </StackLayout>
-            </ScrollView>
+                </ScrollView>
+
+                <!-- Режим календарь -->
+                <ScrollView x:Name="CalendarContainer" IsVisible="False" Opacity="0">
+                    <StackLayout Spacing="0">
+                        <!-- Заголовок с днями недели -->
+                        <Grid ColumnDefinitions="*,*,*,*,*,*,*" RowDefinitions="40">
+                            <Label Text="Пн" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center"/>
+                            <Label Text="Вт" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" Grid.Column="1"/>
+                            <Label Text="Ср" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" Grid.Column="2"/>
+                            <Label Text="Чт" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" Grid.Column="3"/>
+                            <Label Text="Пт" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" Grid.Column="4"/>
+                            <Label Text="Сб" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" Grid.Column="5"/>
+                            <Label Text="Вс" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" Grid.Column="6"/>
+                        </Grid>
+
+                        <!-- Календарь -->
+                        <CollectionView x:Name="CalendarView" SelectionMode="None">
+                            <CollectionView.ItemsLayout>
+                                <GridItemsLayout Orientation="Vertical" Span="7"/>
+                            </CollectionView.ItemsLayout>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Frame Padding="5" Margin="2"
+                                           BackgroundColor="{Binding TileColor}"
+                                           BorderColor="{Binding BorderColor}"
+                                           CornerRadius="8" HasShadow="True"
+                                           IsVisible="{Binding IsVisibleDay}">
+                                        <Frame.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="OnCalendarItemTapped" 
+                                                                 CommandParameter="{Binding .}"/>
+                                        </Frame.GestureRecognizers>
+                                        <StackLayout>
+                                            <Label Text="{Binding Date, StringFormat='{0:dd}'}"
+                                                   HorizontalOptions="Center"
+                                                   FontSize="18"
+                                                   FontAttributes="Bold"/>
+                                            <Label Text="{Binding Shift}" FontSize="10"
+                                                   HorizontalOptions="Center"/>
+                                        </StackLayout>
+                                    </Frame>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </StackLayout>
+                </ScrollView>
+            </Grid>
         </Grid>
-    </Grid>
+
+        <!-- Кнопка чата (справа снизу с отступом) -->
+        <Button x:Name="ChatButton"
+                Text="💬"
+                FontSize="16"
+                WidthRequest="50"
+                HeightRequest="50"
+                CornerRadius="25"
+                BackgroundColor="#4CAF50"
+                TextColor="White"
+                Clicked="GoToChat"
+                Margin="0,0,10,10"
+                AbsoluteLayout.LayoutBounds="1,1,50,50"
+                AbsoluteLayout.LayoutFlags="PositionProportional" />
+    </AbsoluteLayout>
 </ContentPage>

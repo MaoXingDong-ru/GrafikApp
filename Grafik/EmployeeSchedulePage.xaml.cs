@@ -5,18 +5,22 @@ using System.Collections.Generic;
 using System.Text.Json;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
+using Grafik.Services;
 
 namespace Grafik
 {
     public partial class EmployeeSchedulePage : ContentPage
     {
         private const string ViewModeKey = "EmployeeViewMode";
+        private string _employeeName = string.Empty;
 
         private List<ShiftEntry> _employeeSchedule = new();
 
         public EmployeeSchedulePage(string employeeName)
         {
             InitializeComponent();
+            _employeeName = employeeName;
+            
             // Восстанавливаем последний выбранный режим: true = календарь, false = список
             bool savedMode = Preferences.Get(ViewModeKey, false);
             ViewSwitch.IsToggled = savedMode;
@@ -53,6 +57,38 @@ namespace Grafik
             };
 
             LoadEmployeeScheduleAsync(employeeName);
+            
+            // Проверяем подключение к Firebase в silent режиме
+            _ = VerifyFirebaseConnectionAsync();
+        }
+
+        /// <summary>
+        /// Silent проверка подключения к Firebase без AlertDialog
+        /// </summary>
+        private async Task VerifyFirebaseConnectionAsync()
+        {
+            try
+            {
+                var firebaseUrl = Preferences.Get("FirebaseUrl", string.Empty);
+                
+                if (string.IsNullOrEmpty(firebaseUrl))
+                {
+                    System.Diagnostics.Debug.WriteLine("[EmployeeSchedulePage] Firebase URL не настроен");
+                    return;
+                }
+
+                System.Diagnostics.Debug.WriteLine("[EmployeeSchedulePage] Проверка подключения к Firebase...");
+                
+                var firebaseService = new FirebaseService(firebaseUrl);
+                var messages = await firebaseService.GetMessagesAsync();
+                
+                System.Diagnostics.Debug.WriteLine($"[EmployeeSchedulePage] ✓ Подключение успешно! Сообщений: {messages.Count}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[EmployeeSchedulePage] ✗ Ошибка подключения: {ex.Message}");
+                // Silent mode - ошибки не показываем, только логируем
+            }
         }
 
         private async void OnCalendarItemTapped(object sender, EventArgs e)
@@ -229,6 +265,12 @@ namespace Grafik
             if (!string.IsNullOrWhiteSpace(s.SecondLinePartner)) lines.Add(s.SecondLinePartner);
 
             return string.Join("\n", lines);
+        }
+
+        private async void GoToChat(object sender, EventArgs e)
+        {
+            // Передаем имя сотрудника в ChatPage
+            await Navigation.PushAsync(new ChatPage(_employeeName));
         }
     }
 }

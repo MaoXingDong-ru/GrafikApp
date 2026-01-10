@@ -23,7 +23,6 @@
                             TextColor="White"/>
                 </StackLayout>
 
-
                 <!-- Вторая группа элементов (изначально скрыта) -->
                 <StackLayout x:Name="SecondStepGroup" IsVisible="False">
                     <Label x:Name="Instruction2" 
@@ -55,28 +54,8 @@
             </StackLayout>
         </ScrollView>
 
-        <Button Text="Тест мгновенного уведомления" 
-        Clicked="OnTestImmediateNotificationClicked"
-        Margin="0,250,0,0" IsEnabled="False" IsVisible="False"/>
-
-        <Button Text="Тест планирования уведомления" 
-        Clicked="OnTestScheduledNotificationClicked"
-        Margin="0,200,0,0" IsEnabled="False" IsVisible="False"/>
-
-        <!-- Кнопка настроек -->
-        <Button x:Name="SettingsButton"
-                Text="⚙"
-                FontSize="16"
-                WidthRequest="50"
-                HeightRequest="50"
-                CornerRadius="25"
-                BackgroundColor="#007ACC"
-                TextColor="White"
-                Clicked="GoToSettings"
-                AbsoluteLayout.LayoutBounds="1,1,120,120"
-                AbsoluteLayout.LayoutFlags="PositionProportional" />
-
-        <!-- Кнопка удаления -->
+        <!-- Кнопки в нижней части (слева направо) -->
+        <!-- Кнопка удаления (слева снизу) -->
         <Button x:Name="DeleteData"
                 Text="🗑"
                 FontSize="16"
@@ -87,7 +66,45 @@
                 TextColor="White"
                 Clicked="DeleteAllFiles"
                 TranslationX="-50"
-                AbsoluteLayout.LayoutBounds="0,1,120,120"
+                AbsoluteLayout.LayoutBounds="0,1,50,50"
                 AbsoluteLayout.LayoutFlags="PositionProportional" />
+
+        <!-- Кнопка чата (центр снизу) -->
+        <Button x:Name="ChatButton"
+                Text="💬"
+                FontSize="16"
+                WidthRequest="50"
+                HeightRequest="50"
+                CornerRadius="25"
+                BackgroundColor="#4CAF50"
+                TextColor="White"
+                Clicked="GoToChat"
+                IsVisible="False"
+                AbsoluteLayout.LayoutBounds="0.5,1,50,50"
+                AbsoluteLayout.LayoutFlags="PositionProportional"/>
+
+        <!-- Кнопка настроек (справа снизу) --> 
+        <Button x:Name="SettingsButton"
+                Text="⚙"
+                FontSize="16"
+                WidthRequest="50"
+                HeightRequest="50"
+                CornerRadius="25"
+                BackgroundColor="#007ACC"
+                TextColor="White"
+                Clicked="GoToSettings"
+                AbsoluteLayout.LayoutBounds="1,1,50,50"
+                AbsoluteLayout.LayoutFlags="PositionProportional" />
+
+        <!-- Скрытые кнопки для тестирования -->
+        <Button Text="Тест мгновенного уведомления" 
+                Clicked="OnTestImmediateNotificationClicked"
+                IsEnabled="False" 
+                IsVisible="False"/>
+
+        <Button Text="Тест планирования уведомления" 
+                Clicked="OnTestScheduledNotificationClicked"
+                IsEnabled="False" 
+                IsVisible="False"/>
     </AbsoluteLayout>
 </ContentPage>

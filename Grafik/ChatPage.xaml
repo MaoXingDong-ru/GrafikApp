@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Grafik.ChatPage"
+             Title="Чат">
+
+    <Grid RowDefinitions="*,Auto" Padding="0">
+        <!-- История сообщений -->
+        <CollectionView x:Name="MessagesCollectionView"
+                       SelectionMode="Single"
+                       VerticalScrollBarVisibility="Always">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <StackLayout Padding="10,5" Spacing="5">
+                        <!-- Имя отправителя + время -->
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <Label Grid.Column="0"
+                                  Text="{Binding Sender}"
+                                  FontAttributes="Bold"
+                                  FontSize="13"
+                                  TextColor="#007ACC"/>
+                            <Label Grid.Column="1"
+                                  Text="{Binding Timestamp, StringFormat='{0:HH:mm}'}"
+                                  FontSize="11"
+                                  TextColor="Gray"/>
+                        </Grid>
+
+                        <!-- Текст сообщения или файл -->
+                        <Label Text="{Binding Text}"
+                              LineBreakMode="WordWrap"
+                              FontSize="14"
+                              Padding="0,0,0,5"/>
+
+                        <!-- Кнопка для файлов -->
+                        <Frame Padding="10" 
+                               BackgroundColor="#E8F5E9" 
+                               HasShadow="True" 
+                               CornerRadius="8"
+                               IsVisible="{Binding IsFile}"
+                               Margin="0">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                <StackLayout Grid.Column="0" Spacing="3">
+                                    <Label Text="{Binding FileName, StringFormat='📎 {0}'}"
+                                          FontAttributes="Bold"
+                                          TextColor="#2E7D32"
+                                          FontSize="12"/>
+                                    <Label Text="{Binding FileSizeDisplay}"
+                                          FontSize="10"
+                                          TextColor="Gray"/>
+                                </StackLayout>
+                                
+                                <Button Grid.Column="1"
+                                       Text="⬇️ Загрузить"
+                                       Clicked="OnDownloadFileClicked"
+                                       CommandParameter="{Binding .}"
+                                       BackgroundColor="#4CAF50"
+                                       TextColor="White"
+                                       Padding="10"
+                                       FontSize="12"
+                                       VerticalOptions="Center"/>
+                            </Grid>
+                        </Frame>
+
+                        <!-- Разделитель -->
+                        <BoxView Color="#CCCCCC" HeightRequest="1" Margin="0,5"/>
+                    </StackLayout>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- Ввод сообщения -->
+        <Grid Grid.Row="1"
+             ColumnDefinitions="*,60,60"
+             ColumnSpacing="8"
+             Padding="10"
+             RowSpacing="10"
+             BackgroundColor="#F5F5F5">
+            <Entry x:Name="MessageEntry"
+                  Grid.Column="0"
+                  Placeholder="Введите сообщение..."/>
+
+            <Button Grid.Column="1"
+                   Text="📎"
+                   Clicked="OnShareFileClicked"
+                   BackgroundColor="#FF9800"
+                   TextColor="White"
+                   FontSize="18"
+                   Padding="0"/>
+
+            <Button Grid.Column="2"
+                   Text="Отправить"
+                   Clicked="OnSendClicked"
+                   BackgroundColor="#007ACC"
+                   TextColor="White"/>
+        </Grid>
+    </Grid>
+
+</ContentPage>

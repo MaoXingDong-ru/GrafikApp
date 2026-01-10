@@ -1,35 +1,63 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Grafik.SettingsPage"
              Title="Настройки">
 
-    <VerticalStackLayout Padding="20" Spacing="20">
-        
-        <!-- Напоминание о смене -->
-        <VerticalStackLayout Spacing="8">
-            <Label Text="Напоминание о смене:" 
-                   FontSize="16" 
-                   FontAttributes="Bold"/>
-            <Picker x:Name="ReminderPicker">
-                <Picker.ItemsSource>
-                    <x:Array Type="{x:Type x:String}">
-                        <x:String>За 15 минут</x:String>
-                        <x:String>За 1 час</x:String>
-                        <x:String>За 12 часов</x:String>
-                    </x:Array>
-                </Picker.ItemsSource>
-            </Picker>
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="20">
+            
+            <!-- Напоминание о смене -->
+            <VerticalStackLayout Spacing="8">
+                <Label Text="Напоминание о смене:" 
+                       FontSize="16" 
+                       FontAttributes="Bold"/>
+                <Picker x:Name="ReminderPicker"
+                        SelectedIndex="0"/>
+            </VerticalStackLayout>
+
+            <!-- Firebase интеграция -->
+            <VerticalStackLayout Spacing="8">
+                <Label Text="Firebase (чат):" 
+                       FontSize="16" 
+                       FontAttributes="Bold"/>
+
+                <Frame BorderColor="#4CAF50" 
+                       CornerRadius="8" 
+                       Padding="12"
+                       HasShadow="False">
+                    <Label x:Name="FirebaseStatusLabel"
+                           Text="○ Firebase не настроен"
+                           FontSize="13"
+                           TextColor="Orange"/>
+                </Frame>
+
+                <Label Text="Database URL (из Firebase Console):" 
+                       FontSize="12"/>
+                <Entry x:Name="FirebaseUrlEntry" 
+                       Placeholder="https://your-project.firebaseio.com"/>
+
+                <Label Text="Пример: https://grafikchat-abc123.firebaseio.com" 
+                       FontSize="11"
+                       TextColor="Gray"
+                       Margin="0,-5,0,10"/>
+
+                <Button Text="Проверить соединение Firebase"
+                        Clicked="OnTestFirebaseClicked"
+                        BackgroundColor="#4CAF50"
+                        TextColor="White"
+                        Padding="10"/>
+            </VerticalStackLayout>
+
+            <!-- Кнопка сохранения -->
+            <Button x:Name="SaveButton"
+                    Text="Сохранить"
+                    Clicked="OnSaveSettingsClicked"
+                    BackgroundColor="#2196F3"
+                    TextColor="White"
+                    Padding="10"/>
+
         </VerticalStackLayout>
-
-        <!-- Кнопка сохранения -->
-        <Button x:Name="SaveButton"
-                Text="Сохранить"
-                Clicked="OnSaveSettingsClicked"
-                BackgroundColor="#2196F3"
-                TextColor="White"
-                Padding="10"/>
-
-    </VerticalStackLayout>
+    </ScrollView>
 
 </ContentPage>

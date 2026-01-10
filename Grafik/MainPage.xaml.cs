@@ -3,6 +3,7 @@ using Microsoft.Maui.Storage;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using Grafik.Services;
 
 namespace Grafik;
 
@@ -18,27 +19,31 @@ public partial class MainPage : ContentPage
         LoadEmployeeList();
     }
 
-    private void SetupInitialState()
+    protected override async void OnAppearing()
     {
-        DeleteData.IsVisible = false;
-        DeleteData.TranslationX = -120;
-
-        string selectedEmployee = Preferences.Get("SelectedEmployee", string.Empty);
-        if (!string.IsNullOrEmpty(selectedEmployee))
-        {
-            Navigation.PushAsync(new EmployeeSchedulePage(selectedEmployee));
-        }
+        base.OnAppearing();
+        
+        // Проверяем, есть ли сохраненный файл для загрузки из чата
+        await CheckAndLoadPendingScheduleFileAsync();
+        
+        // Проверяем подключение Firebase и показываем/скрываем кнопку чата
+        await UpdateChatButtonVisibilityAsync();
     }
 
-    private AppSettings LoadSettings()
+    /// <summary>
+    /// Динамически показываем/скрываем кнопку чата в зависимости от подключения Firebase
+    /// </summary>
+    private async Task UpdateChatButtonVisibilityAsync()
     {
-        string settingsPath = Path.Combine(FileSystem.AppDataDirectory, "settings.json");
-        if (File.Exists(settingsPath))
-        {
-            var json = File.ReadAllText(settingsPath);
-            return JsonSerializer.Deserialize<AppSettings>(json);
-        }
-        return new AppSettings();
+        bool firebaseOk = await VerifyFirebaseQuietlyAsync();
+        ChatButton.IsVisible = firebaseOk;
+        
+        Console.WriteLine($"[MainPage] Кнопка чата: {(firebaseOk ? "видима ✓" : "скрыта ✗")}");
+    }
+
+    private async void GoToChat(object sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new ChatPage());
     }
 
     private async void OnLoadExcelClicked(object sender, EventArgs e)
@@ -60,6 +65,8 @@ public partial class MainPage : ContentPage
             if (result != null)
             {
                 await ProcessExcelFile(result.FullPath);
+                // После загрузки проверяем Firebase и обновляем видимость кнопки чата
+                await UpdateChatButtonVisibilityAsync();
             }
         }
         catch (Exception ex)
@@ -68,10 +75,8 @@ public partial class MainPage : ContentPage
         }
     }
 
-    private async Task ProcessExcelFile(string filePath)
+    private async Task ProcessExcelFile(byte[] fileBytes)
     {
-        var fileBytes = File.ReadAllBytes(filePath);
-
         var schedule = ExtractScheduleFromExcel(fileBytes);
         SaveScheduleToJson(schedule);
 
@@ -88,6 +93,45 @@ public partial class MainPage : ContentPage
         else
         {
             DisplayMessage("Не удалось извлечь сотрудников.");
+        }
+    }
+
+    private async Task ProcessExcelFile(string filePath)
+    {
+        var fileBytes = File.ReadAllBytes(filePath);
+        await ProcessExcelFile(fileBytes);
+    }
+
+    /// <summary>
+    /// Публичный метод для загрузки расписания из файла (вызывается из ChatPage)
+    /// </summary>
+    public async Task ProcessExcelFileAsync(string filePath)
+    {
+        try
+        {
+            var fileBytes = await File.ReadAllBytesAsync(filePath);
+            var schedule = ExtractScheduleFromExcel(fileBytes);
+            SaveScheduleToJson(schedule);
+
+            var uniqueEmployees = schedule.Select(s => s.Employees).Distinct().ToList();
+            SaveEmployeesToJson(uniqueEmployees);
+
+            if (uniqueEmployees.Count > 0)
+            {
+                EmployeePicker.ItemsSource = uniqueEmployees;
+                await AnimateToStep2UI();
+                await ShowDeleteButton();
+                DisplayMessage($"Данные успешно загружены из файла");
+            }
+            else
+            {
+                DisplayMessage("Не удалось извлечь сотрудников из файла.");
+            }
+        }
+        catch (Exception ex)
+        {
+            DisplayMessage($"Ошибка при загрузке файла: {ex.Message}");
+            throw;
         }
     }
 
@@ -165,8 +209,8 @@ public partial class MainPage : ContentPage
     private static (int firstLineCount, int secondLineCount, int secondLineStartRow) DetectEmployeeCounts(IXLWorksheet worksheet)
     {
         const int startRow = 4;
-        var invalidNames = new HashSet<string> 
-        { 
+        var invalidNames = new HashSet<string>
+        {
             "дата", "время", "date", "time", "",
             "архипов дмитрий", "бруснигин антон" // Исключаем зарубежную техподдержку
         };
@@ -179,7 +223,7 @@ public partial class MainPage : ContentPage
         bool foundGap = false;
         int emptyRowsCount = 0;
         const int emptyRowsThreshold = 2; // Если подряд 2+ пустые строки - это разделитель
-        
+
         var lastUsedCell = worksheet.LastRowUsed();
         if (lastUsedCell == null)
             return (0, 0, 0);
@@ -195,7 +239,7 @@ public partial class MainPage : ContentPage
             if (string.IsNullOrWhiteSpace(rawName) || invalidNames.Contains(rawName))
             {
                 emptyRowsCount++;
-                
+
                 // Если мы уже нашли первую линию и встретили достаточно пустых строк
                 if (foundFirstLine && !foundGap && emptyRowsCount >= emptyRowsThreshold)
                 {
@@ -398,11 +442,101 @@ public partial class MainPage : ContentPage
         if (EmployeePicker.SelectedItem is string selectedEmployee)
         {
             Preferences.Set("SelectedEmployee", selectedEmployee);
+            
+            // Silent проверка Firebase подключения перед открытием расписания
+            bool firebaseOk = await VerifyFirebaseQuietlyAsync();
+            if (!firebaseOk)
+            {
+                await DisplayAlert("Ошибка", "Firebase недоступна. Проверьте подключение в параметрах.", "OK");
+                return;
+            }
+            
             await Navigation.PushAsync(new EmployeeSchedulePage(selectedEmployee));
         }
         else
         {
             await DisplayAlert("Ошибка", "Пожалуйста, выберите сотрудника", "OK");
+        }
+    }
+
+    private async Task<bool> VerifyFirebaseQuietlyAsync()
+    {
+        try
+        {
+            var firebaseUrl = Preferences.Get("FirebaseUrl", string.Empty);
+            
+            if (string.IsNullOrEmpty(firebaseUrl))
+                return false;
+
+            var firebaseService = new FirebaseService(firebaseUrl);
+            await firebaseService.GetMessagesAsync();
+            
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Silent проверка подключения к Firebase без AlertDialog
+    /// </summary>
+    private async Task VerifyFirebaseConnectionAsync()
+    {
+        try
+        {
+            var firebaseUrl = Preferences.Get("FirebaseUrl", string.Empty);
+            
+            if (string.IsNullOrEmpty(firebaseUrl))
+            {
+                Console.WriteLine("[MainPage] Firebase URL не настроен");
+                return;
+            }
+
+            Console.WriteLine("[MainPage] Проверка подключения к Firebase...");
+            
+            var firebaseService = new FirebaseService(firebaseUrl);
+            var messages = await firebaseService.GetMessagesAsync();
+            
+            Console.WriteLine($"[MainPage] ✓ Подключение успешно! Сообщений: {messages.Count}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MainPage] ✗ Ошибка подключения: {ex.Message}");
+            // Silent mode - ошибки не показываем, только логируем
+        }
+    }
+
+    /// <summary>
+    /// Публичный метод для удаления всех данных (вызывается из ChatPage и UI)
+    /// </summary>
+    public async Task ClearAllDataAsync()
+    {
+        try
+        {
+            if (File.Exists(employeeListFilePath))
+                File.Delete(employeeListFilePath);
+                
+            if (File.Exists(scheduleFilePath))
+                File.Delete(scheduleFilePath);
+
+            // Удаляем ТОЛЬКО данные расписания, но НЕ настройки!
+            Preferences.Remove("SelectedEmployee");
+            Preferences.Remove("PendingScheduleFile");
+            // ❌ НЕ вызываем Preferences.Clear()!
+
+            await AnimateBackToStep1UI();
+            await HideDeleteButton();
+            DisplayMessage("Все данные были удалены");
+            
+            // После удаления проверяем Firebase и обновляем видимость кнопки чата
+            await UpdateChatButtonVisibilityAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MainPage] Ошибка при удалении данных: {ex.Message}");
+            throw;
         }
     }
 
@@ -414,13 +548,7 @@ public partial class MainPage : ContentPage
         {
             try
             {
-                File.Delete(employeeListFilePath);
-                File.Delete(scheduleFilePath);
-                Preferences.Clear();
-
-                await AnimateBackToStep1UI();
-                await HideDeleteButton();
-                DisplayMessage("Все данные были удалены");
+                await ClearAllDataAsync();
             }
             catch (Exception ex)
             {
@@ -432,8 +560,8 @@ public partial class MainPage : ContentPage
     private void OnTestImmediateNotificationClicked(object sender, EventArgs e)
     {
 #if ANDROID
-    Grafik.Services.NotificationService.ShowTestNotification();
-    DisplayAlert("Тест", "Мгновенное уведомление отправлено", "OK");
+        Grafik.Services.NotificationService.ShowTestNotification();
+        DisplayAlert("Тест", "Мгновенное уведомление отправлено", "OK");
 #else
         DisplayAlert("Тест", "Уведомления доступны только на Android", "OK");
 #endif
@@ -442,8 +570,8 @@ public partial class MainPage : ContentPage
     private void OnTestScheduledNotificationClicked(object sender, EventArgs e)
     {
 #if ANDROID
-    Grafik.Services.NotificationService.ScheduleTestNotification();
-    DisplayAlert("Тест", "Уведомление запланировано на 10 секунд", "OK");
+        Grafik.Services.NotificationService.ScheduleTestNotification();
+        DisplayAlert("Тест", "Уведомление запланировано на 10 секунд", "OK");
 #else
         DisplayAlert("Тест", "Планирование доступно только на Android", "OK");
 #endif
@@ -452,5 +580,67 @@ public partial class MainPage : ContentPage
     private async void GoToSettings(object sender, EventArgs e)
     {
         await Navigation.PushAsync(new SettingsPage());
+    }
+
+    private void SetupInitialState()
+    {
+        DeleteData.IsVisible = false;
+        DeleteData.TranslationX = -120;
+
+        string selectedEmployee = Preferences.Get("SelectedEmployee", string.Empty);
+        if (!string.IsNullOrEmpty(selectedEmployee))
+        {
+            Navigation.PushAsync(new EmployeeSchedulePage(selectedEmployee));
+        }
+    }
+
+    private async Task CheckAndLoadPendingScheduleFileAsync()
+    {
+        try
+        {
+            var pendingFile = Preferences.Get("PendingScheduleFile", string.Empty);
+            
+            if (!string.IsNullOrEmpty(pendingFile) && File.Exists(pendingFile))
+            {
+                Console.WriteLine("[MainPage] Найден ожидающий файл расписания: " + pendingFile);
+                
+                // Спрашиваем пользователя
+                bool shouldLoad = await DisplayAlert(
+                    "📎 Загрузить расписание",
+                    "Обнаружен файл расписания из чата.\n\nЗагрузить его сейчас?",
+                    "Да",
+                    "Нет"
+                );
+
+                if (shouldLoad)
+                {
+                    Console.WriteLine("[MainPage] Загрузка ожидающего файла...");
+                    
+                    try
+                    {
+                        await ClearAllDataAsync();
+                        await ProcessExcelFileAsync(pendingFile);
+                        
+                        await DisplayAlert("✅ Успех", 
+                            "Расписание успешно загружено!", 
+                            "OK");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[MainPage] Ошибка при загрузке: {ex.Message}");
+                        await DisplayAlert("❌ Ошибка", 
+                            $"Не удалось загрузить расписание:\n{ex.Message}", 
+                            "OK");
+                    }
+                }
+                
+                // В любом случае удаляем флаг
+                Preferences.Remove("PendingScheduleFile");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MainPage] Ошибка при проверке ожидающего файла: {ex.Message}");
+        }
     }
 }
