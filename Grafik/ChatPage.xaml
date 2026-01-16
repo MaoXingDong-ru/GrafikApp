@@ -1,12 +1,66 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:Grafik.Converters"
              x:Class="Grafik.ChatPage"
              Title="Чат">
 
-    <Grid RowDefinitions="*,Auto" Padding="0">
+    <Grid RowDefinitions="Auto,*,Auto" Padding="0">
+        <!-- Панель закреплённых сообщений -->
+        <Frame x:Name="PinnedMessagesFrame"
+               Padding="0"
+               Margin="0"
+               CornerRadius="0"
+               HasShadow="True"
+               BackgroundColor="#FFF3E0"
+               IsVisible="False"
+               Grid.Row="0">
+            <CollectionView x:Name="PinnedMessagesCollectionView"
+                           SelectionMode="Single"
+                           ItemsUpdatingScrollMode="KeepScrollOffset"
+                           HeightRequest="100">
+                <CollectionView.ItemsLayout>
+                    <LinearItemsLayout Orientation="Horizontal" ItemSpacing="8"/>
+                </CollectionView.ItemsLayout>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border StrokeThickness="2" 
+                                Stroke="#FF9800" 
+                                Padding="10"
+                                BackgroundColor="White"
+                                StrokeShape="RoundRectangle 8,8,8,8"
+                                Margin="5">
+                            <StackLayout Spacing="5" WidthRequest="150">
+                                <Label Text="📌 Закреплено"
+                                      FontSize="10"
+                                      TextColor="#FF6F00"
+                                      FontAttributes="Bold"/>
+                                <Label Text="{Binding FileName, StringFormat='📎 {0}'}"
+                                      FontAttributes="Bold"
+                                      TextColor="#2E7D32"
+                                      FontSize="11"
+                                      LineBreakMode="TailTruncation"/>
+                                <Label Text="{Binding FileSizeDisplay}"
+                                      FontSize="9"
+                                      TextColor="Gray"/>
+                                <Button Text="Открыть"
+                                       Clicked="OnPinnedMessageClicked"
+                                       CommandParameter="{Binding .}"
+                                       BackgroundColor="#FF9800"
+                                       TextColor="White"
+                                       Padding="5"
+                                       FontSize="11"
+                                       CornerRadius="4"/>
+                            </StackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </Frame>
+
         <!-- История сообщений -->
         <CollectionView x:Name="MessagesCollectionView"
+                       Grid.Row="1"
                        SelectionMode="Single"
                        VerticalScrollBarVisibility="Always">
             <CollectionView.ItemTemplate>
@@ -31,14 +85,14 @@
                               FontSize="14"
                               Padding="0,0,0,5"/>
 
-                        <!-- Кнопка для файлов -->
+                        <!-- Блок для файлов -->
                         <Frame Padding="10" 
-                               BackgroundColor="#E8F5E9" 
+                               BackgroundColor="{Binding IsMessagePinned, Converter={local:PinnedBackgroundConverter}}"
                                HasShadow="True" 
                                CornerRadius="8"
                                IsVisible="{Binding IsFile}"
                                Margin="0">
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
                                 <StackLayout Grid.Column="0" Spacing="3">
                                     <Label Text="{Binding FileName, StringFormat='📎 {0}'}"
                                           FontAttributes="Bold"
@@ -48,19 +102,31 @@
                                           FontSize="10"
                                           TextColor="Gray"/>
                                 </StackLayout>
-                                
+
                                 <Button Grid.Column="1"
-                                       Text="⬇️ Загрузить"
+                                       Text="{Binding PinButtonText}"
+                                       Clicked="OnPinFileClicked"
+                                       CommandParameter="{Binding .}"
+                                       BackgroundColor="{Binding IsMessagePinned, Converter={local:PinButtonColorConverter}}"
+                                       TextColor="White"
+                                       Padding="12,8"
+                                       FontSize="11"
+                                       VerticalOptions="Center"
+                                       HorizontalOptions="Center"/>
+
+                                <Button Grid.Column="2"
+                                       Text="⬇ Загрузить"
                                        Clicked="OnDownloadFileClicked"
                                        CommandParameter="{Binding .}"
                                        BackgroundColor="#4CAF50"
                                        TextColor="White"
-                                       Padding="10"
-                                       FontSize="12"
-                                       VerticalOptions="Center"/>
+                                       Padding="15,10"
+                                       FontSize="13"
+                                       VerticalOptions="Center"
+                                       HorizontalOptions="Center"
+                                       CornerRadius="6"/>
                             </Grid>
                         </Frame>
-
                         <!-- Разделитель -->
                         <BoxView Color="#CCCCCC" HeightRequest="1" Margin="0,5"/>
                     </StackLayout>
@@ -69,17 +135,28 @@
         </CollectionView>
 
         <!-- Ввод сообщения -->
-        <Grid Grid.Row="1"
+        <Grid Grid.Row="2"
              ColumnDefinitions="*,60,60"
              ColumnSpacing="8"
              Padding="10"
              RowSpacing="10"
-             BackgroundColor="#F5F5F5">
-            <Entry x:Name="MessageEntry"
-                  Grid.Column="0"
-                  Placeholder="Введите сообщение..."/>
+             BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}">
 
-            <Button Grid.Column="1"
+            <Border Grid.Column="0"
+                   Stroke="#CCCCCC"
+                   StrokeThickness="1"
+                   Padding="0">
+                <Entry x:Name="MessageEntry"
+                      Placeholder="Введите сообщение..."
+                      PlaceholderColor="#999999"
+                      TextColor="#000000"
+                      BackgroundColor="#FFFFFF"
+                      FontSize="14"
+                      Margin="0"/>
+            </Border>
+
+            <Button x:Name="ShareButton"
+                   Grid.Column="1"
                    Text="📎"
                    Clicked="OnShareFileClicked"
                    BackgroundColor="#FF9800"
@@ -87,12 +164,12 @@
                    FontSize="18"
                    Padding="0"/>
 
-            <Button Grid.Column="2"
+            <Button x:Name="SendButton"
+                   Grid.Column="2"
                    Text="Отправить"
                    Clicked="OnSendClicked"
                    BackgroundColor="#007ACC"
                    TextColor="White"/>
         </Grid>
     </Grid>
-
 </ContentPage>

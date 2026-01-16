@@ -2,20 +2,35 @@
 {
     public static class ReminderHelper
     {
-        public static System.TimeSpan ToTimeSpan(this ReminderOption reminder)
+        public static DateTime GetNotificationTime(DateTime shiftStart, ReminderOption reminder)
         {
             return reminder switch
             {
-                ReminderOption.Minutes15 => System.TimeSpan.FromMinutes(15),
-                ReminderOption.Hour1 => System.TimeSpan.FromHours(1),
-                ReminderOption.Hours12 => System.TimeSpan.FromHours(12),
-                _ => System.TimeSpan.Zero
+                ReminderOption.FiveMinutesBefore => shiftStart.AddMinutes(-5),
+                ReminderOption.FifteenMinutesBefore => shiftStart.AddMinutes(-15),
+                ReminderOption.ThirtyMinutesBefore => shiftStart.AddMinutes(-30),
+                ReminderOption.OneHourBefore => shiftStart.AddHours(-1),
+                ReminderOption.TwoHoursBefore => shiftStart.AddHours(-2),
+                ReminderOption.OneDayBefore => shiftStart.AddDays(-1),
+                _ => shiftStart.AddMinutes(-30) // По умолчанию 30 минут
             };
         }
 
-        public static System.DateTime GetNotificationTime(System.DateTime shiftStart, ReminderOption reminder)
+        /// <summary>
+        /// Получить отображаемое имя опции напоминания
+        /// </summary>
+        public static string GetDisplayName(ReminderOption reminder)
         {
-            return shiftStart - reminder.ToTimeSpan();
+            return reminder switch
+            {
+                ReminderOption.FiveMinutesBefore => "За 5 минут",
+                ReminderOption.FifteenMinutesBefore => "За 15 минут",
+                ReminderOption.ThirtyMinutesBefore => "За 30 минут",
+                ReminderOption.OneHourBefore => "За 1 час",
+                ReminderOption.TwoHoursBefore => "За 2 часа",
+                ReminderOption.OneDayBefore => "За 1 день",
+                _ => "За 30 минут"
+            };
         }
     }
 }

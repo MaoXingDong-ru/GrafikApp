@@ -1,9 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 
-#if ANDROID
-using Grafik.Services;
-#endif
-
 namespace Grafik
 {
     public static class MauiProgram
@@ -18,11 +14,6 @@ namespace Grafik
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 });
-
-#if ANDROID
-            // Инициализируем канал уведомлений при запуске
-            NotificationService.CreateNotificationChannel();
-#endif
 
 #if DEBUG
     			builder.Logging.AddDebug();

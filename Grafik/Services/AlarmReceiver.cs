@@ -12,50 +12,56 @@ namespace Grafik.Services
         public override void OnReceive(Context context, Intent intent)
         {
             if (context == null || intent == null)
+            {
+                System.Diagnostics.Debug.WriteLine("[AlarmReceiver] ❌ Context или Intent = null");
                 return;
+            }
 
             string title = intent?.GetStringExtra("title") ?? "Напоминание";
             string message = intent?.GetStringExtra("message") ?? "Скоро смена!";
-            int notificationId = intent?.GetIntExtra("notification_id", new System.Random().Next(1000, 9999)) ?? new System.Random().Next(1000, 9999);
+            string channelId = intent?.GetStringExtra("channel_id") ?? NotificationService.SHIFT_CHANNEL_ID;
+            int notificationId = intent?.GetIntExtra("notification_id", new System.Random().Next(1000, 9999)) 
+                ?? new System.Random().Next(1000, 9999);
+
+            System.Diagnostics.Debug.WriteLine($"[AlarmReceiver] 🔔 Будильник сработал!");
+            System.Diagnostics.Debug.WriteLine($"[AlarmReceiver]   ID: {notificationId}");
+            System.Diagnostics.Debug.WriteLine($"[AlarmReceiver]   Название: {title}");
+            System.Diagnostics.Debug.WriteLine($"[AlarmReceiver]   Канал: {channelId}");
 
             try
             {
-                CreateNotificationChannel(context);
+                NotificationService.CreateNotificationChannels();
 
-                var notificationBuilder = new NotificationCompat.Builder(context, NotificationService.CHANNEL_ID)
+                var notificationBuilder = new NotificationCompat.Builder(context, channelId)
                     .SetContentTitle(title)
                     .SetContentText(message)
                     .SetAutoCancel(true)
                     .SetSmallIcon(Android.Resource.Drawable.IcDialogInfo)
-                    .SetPriority(NotificationCompat.PriorityHigh)
-                    .SetCategory(NotificationCompat.CategoryReminder);
+                    .SetStyle(new NotificationCompat.BigTextStyle().BigText(message));
+
+                // Разные приоритеты для разных типов
+                if (channelId == NotificationService.SHIFT_CHANNEL_ID)
+                {
+                    notificationBuilder
+                        .SetPriority(NotificationCompat.PriorityHigh)
+                        .SetCategory(NotificationCompat.CategoryReminder)
+                        .SetVibrate(new long[] { 0, 250, 250, 250 });
+                }
+                else
+                {
+                    notificationBuilder.SetPriority(NotificationCompat.PriorityDefault);
+                }
 
                 var notificationManager = NotificationManagerCompat.From(context);
                 notificationManager.Notify(notificationId, notificationBuilder.Build());
-                
-                System.Diagnostics.Debug.WriteLine($"Уведомление отправлено: {title}");
+
+                System.Diagnostics.Debug.WriteLine($"[AlarmReceiver] ✅ Уведомление отправлено: {title}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Ошибка AlarmReceiver: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[AlarmReceiver] ❌ Ошибка: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[AlarmReceiver] Stack: {ex.StackTrace}");
             }
-        }
-
-        private void CreateNotificationChannel(Context context)
-        {
-            if (Android.OS.Build.VERSION.SdkInt < Android.OS.BuildVersionCodes.O)
-                return;
-
-            var channel = new NotificationChannel(
-                NotificationService.CHANNEL_ID,
-                "Напоминания о сменах",
-                NotificationImportance.High)
-            {
-                Description = "Уведомления о предстоящих сменах"
-            };
-
-            var notificationManager = context.GetSystemService(Context.NotificationService) as NotificationManager;
-            notificationManager?.CreateNotificationChannel(channel);
         }
     }
 }

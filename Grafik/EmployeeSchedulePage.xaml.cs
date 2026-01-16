@@ -6,6 +6,7 @@ using System.Text.Json;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Grafik.Services;
+using System.Diagnostics; 
 
 namespace Grafik
 {
@@ -15,6 +16,7 @@ namespace Grafik
         private string _employeeName = string.Empty;
 
         private List<ShiftEntry> _employeeSchedule = new();
+        private List<ShiftEntry> _schedule = new(); 
 
         public EmployeeSchedulePage(string employeeName)
         {
@@ -271,6 +273,107 @@ namespace Grafik
         {
             // Передаем имя сотрудника в ChatPage
             await Navigation.PushAsync(new ChatPage(_employeeName));
+        }
+
+        private void OnReminderChanged(object sender, EventArgs e)
+        {
+            Debug.WriteLine("[EmployeeSchedulePage] OnReminderChanged");
+            
+            if (ReminderPicker.SelectedItem is string reminderText)
+            {
+                // Парсим выбранное напоминание
+                if (Enum.TryParse<ReminderOption>(reminderText, out var reminder))
+                {
+                    // Сохраняем новое напоминание
+                    Preferences.Set("ReminderOption", reminder.ToString());
+                    
+                    Debug.WriteLine($"[EmployeeSchedulePage] Напоминание изменено на: {reminder}");
+                    
+                    // 🔔 ПЕРЕПЛАН ВСЕХ УВЕДОМЛЕНИЙ
+                    RescheduleAllNotifications(reminder);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Переплан всех уведомлений о сменах с новым временем напоминания
+        /// </summary>
+        private void RescheduleAllNotifications(ReminderOption reminder)
+        {
+            Debug.WriteLine($"[EmployeeSchedulePage] 📅 Переплан уведомлений с напоминанием: {reminder}");
+            
+            if (_schedule == null || _schedule.Count == 0)
+            {
+                Debug.WriteLine("[EmployeeSchedulePage] ❌ Расписание не загружено");
+                return;
+            }
+
+            try
+            {
+                int rescheduledCount = 0;
+                
+                foreach (var entry in _schedule)
+                {
+                    // Планируем уведомление для каждой смены
+                    NotificationService.ScheduleShiftNotification(entry, reminder);
+                    rescheduledCount++;
+                }
+                
+                Debug.WriteLine($"[EmployeeSchedulePage] ✅ Переплано {rescheduledCount} уведомлений");
+                
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    DisplayAlert("✅ Успех", $"Переплано {rescheduledCount} уведомлений о сменах", "OK");
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[EmployeeSchedulePage] ❌ Ошибка переплана: {ex.Message}");
+                
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    DisplayAlert("❌ Ошибка", $"Ошибка переплана уведомлений: {ex.Message}", "OK");
+                });
+            }
+        }
+
+        private async void LoadScheduleData()
+        {
+            Debug.WriteLine("[EmployeeSchedulePage] LoadScheduleData");
+
+            try
+            {
+                // Получаем сохранённое напоминание или используем значение по умолчанию
+                string reminderStr = Preferences.Get("ReminderOption", ReminderOption.ThirtyMinutesBefore.ToString());
+                
+                if (Enum.TryParse<ReminderOption>(reminderStr, out var reminder))
+                {
+                    Debug.WriteLine($"[EmployeeSchedulePage] Загружено напоминание: {reminder}");
+
+                    // Планируем уведомления для всех смен
+                    foreach (var entry in _schedule)
+                    {
+                        NotificationService.ScheduleShiftNotification(entry, reminder);
+                    }
+
+                    Debug.WriteLine($"[EmployeeSchedulePage] ✅ Запланировано {_schedule.Count} уведомлений");
+
+                    // Обновляем UI с выбранным напоминанием
+                    UpdateReminderPicker(reminder);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[EmployeeSchedulePage] ❌ Ошибка: {ex.Message}");
+            }
+        }
+
+        private void UpdateReminderPicker(ReminderOption reminder)
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                ReminderPicker.SelectedItem = ReminderHelper.GetDisplayName(reminder);
+            });
         }
     }
 }

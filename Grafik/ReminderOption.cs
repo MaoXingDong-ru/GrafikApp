@@ -1,7 +1,7 @@
-п»їnamespace Grafik.Services
+namespace Grafik
 {
     /// <summary>
-    /// Р’Р°СЂРёР°РЅС‚С‹ РЅР°РїРѕРјРёРЅР°РЅРёСЏ РїРµСЂРµРґ СЃРјРµРЅС‹
+    /// Варианты напоминания перед смены
     /// </summary>
     public enum ReminderOption
     {

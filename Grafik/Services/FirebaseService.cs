@@ -47,6 +47,12 @@ namespace Grafik.Services
         /// </summary>
         [JsonPropertyName("type")]
         public string Type { get; set; } = "text";
+
+        /// <summary>
+        /// Закреплено ли сообщение (для файлов)
+        /// </summary>
+        [JsonPropertyName("isPinned")]
+        public bool IsPinned { get; set; } = false;
     }
 
     public class FirebaseService
@@ -407,6 +413,133 @@ namespace Grafik.Services
             {
                 Log($"❌ Ошибка очистки: {ex.Message}");
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Обновить сообщение (например, статус закрепления)
+        /// </summary>
+        public async Task<bool> UpdateMessageAsync(FirebaseMessage message)
+        {
+            try
+            {
+                Log($"📝 Обновление сообщения: {message.Id}");
+
+                var json = JsonSerializer.Serialize(message);
+                var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+                var url = $"{_databaseUrl}/messages/{message.Id}.json";
+                Log($"📍 PUT URL: {url}");
+
+                var request = new HttpRequestMessage(HttpMethod.Put, url) { Content = content };
+                var response = await _httpClient.SendAsync(request);
+
+                Log($"📊 Status Code: {(int)response.StatusCode}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Log($"✅ Сообщение успешно обновлено: {message.Id}");
+                    return true;
+                }
+
+                Log($"❌ Ошибка обновления: {response.StatusCode}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log($"❌ Исключение при обновлении: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Обновить статус закрепления сообщения (PATCH для частичного обновления)
+        /// </summary>
+        public async Task<bool> UpdateMessagePinnedStatusAsync(FirebaseMessage message)
+        {
+            try
+            {
+                Log($"📝 Обновление статуса закрепления для: {message.Id}");
+
+                // Находим ключ сообщения в Firebase (по ID)
+                var allMessages = await GetMessagesAsync();
+                var firebaseData = await GetRawMessagesDataAsync();
+                
+                string? firebaseKey = null;
+                foreach (var kvp in firebaseData)
+                {
+                    var msg = JsonSerializer.Deserialize<FirebaseMessage>(kvp.Value.GetRawText());
+                    if (msg?.Id == message.Id)
+                    {
+                        firebaseKey = kvp.Key;
+                        break;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(firebaseKey))
+                {
+                    Log($"❌ Ключ сообщения не найден: {message.Id}");
+                    return false;
+                }
+
+                Log($"📍 Найден ключ Firebase: {firebaseKey}");
+
+                // Обновляем только поле isPinned через PATCH
+                var updateData = new { isPinned = message.IsPinned };
+                var json = JsonSerializer.Serialize(updateData);
+                var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+                var url = $"{_databaseUrl}/messages/{firebaseKey}.json";
+                Log($"📍 PATCH URL: {url}");
+
+                var request = new HttpRequestMessage(new HttpMethod("PATCH"), url) { Content = content };
+                var response = await _httpClient.SendAsync(request);
+
+                Log($"📊 Status Code: {(int)response.StatusCode}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Log($"✅ Статус закрепления обновлен: {message.Id} -> {message.IsPinned}");
+                    return true;
+                }
+
+                Log($"❌ Ошибка обновления: {response.StatusCode}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log($"❌ Исключение при обновлении: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Получить сырые данные сообщений (с ключами Firebase)
+        /// </summary>
+        private async Task<Dictionary<string, JsonElement>> GetRawMessagesDataAsync()
+        {
+            try
+            {
+                var url = $"{_databaseUrl}/messages.json";
+                var response = await _httpClient.GetAsync(url);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return new Dictionary<string, JsonElement>();
+                }
+
+                var json = await response.Content.ReadAsStringAsync();
+                if (json == "null")
+                {
+                    return new Dictionary<string, JsonElement>();
+                }
+
+                var firebaseData = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
+                return firebaseData ?? new Dictionary<string, JsonElement>();
+            }
+            catch
+            {
+                return new Dictionary<string, JsonElement>();
             }
         }
     }
