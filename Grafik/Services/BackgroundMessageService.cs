@@ -8,15 +8,14 @@ using System.Threading.Tasks;
 namespace Grafik.Services
 {
     /// <summary>
-    /// Сервис для фонового опроса новых сообщений
-    /// Работает независимо от открытого экрана
+    /// Сервис для фонового опроса новых сообщений.
+    /// Использует поле readBy в Firebase для определения непрочитанных сообщений на каждом устройстве.
     /// </summary>
     public class BackgroundMessageService
     {
         private static BackgroundMessageService? _instance;
         private FirebaseService? _firebaseService;
         private CancellationTokenSource? _cancellationTokenSource;
-        private DateTime _lastMessageTime = DateTime.MinValue;
         private bool _isRunning = false;
         private bool _isPaused = false;
 
@@ -47,6 +46,7 @@ namespace Grafik.Services
             try
             {
                 Debug.WriteLine("[BackgroundMessageService] Запуск сервиса фонового опроса сообщений");
+                Debug.WriteLine($"[BackgroundMessageService] DeviceId: {FirebaseService.GetDeviceId()}");
                 
                 _firebaseService = new FirebaseService(firebaseUrl);
                 _cancellationTokenSource = new CancellationTokenSource();
@@ -91,7 +91,7 @@ namespace Grafik.Services
         }
 
         /// <summary>
-        /// Приостановить полинг (когда приложение свернулось)
+        /// Приостановить полинг (когда приложение свернулось — увеличиваем интервал)
         /// </summary>
         public void Pause()
         {
@@ -99,7 +99,7 @@ namespace Grafik.Services
                 return;
 
             _isPaused = true;
-            Debug.WriteLine("[BackgroundMessageService] Полинг приостановлен (приложение в фоне)");
+            Debug.WriteLine("[BackgroundMessageService] Приложение в фоне — полинг с увеличенным интервалом");
         }
 
         /// <summary>
@@ -111,55 +111,77 @@ namespace Grafik.Services
                 return;
 
             _isPaused = false;
-            Debug.WriteLine("[BackgroundMessageService] Полинг возобновлен (приложение открыто)");
+            Debug.WriteLine("[BackgroundMessageService] Полинг возобновлен с обычным интервалом");
         }
 
         /// <summary>
-        /// Установить время последнего сообщения (для синхронизации с ChatPage)
+        /// Пометить все сообщения как прочитанные на текущем устройстве
+        /// (вызывается когда пользователь открывает чат)
         /// </summary>
-        public void SetLastMessageTime(DateTime lastTime)
+        public async Task MarkAllAsReadAsync()
         {
-            _lastMessageTime = lastTime;
-            Debug.WriteLine($"[BackgroundMessageService] Время последнего сообщения установлено: {lastTime}");
+            if (_firebaseService == null)
+                return;
+
+            try
+            {
+                var unread = await _firebaseService.GetUnreadMessagesAsync();
+                if (unread.Count > 0)
+                {
+                    Debug.WriteLine($"[BackgroundMessageService] Помечаем {unread.Count} сообщений как прочитанные");
+                    await _firebaseService.MarkMessagesAsReadAsync(unread);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[BackgroundMessageService] Ошибка MarkAllAsReadAsync: {ex.Message}");
+            }
         }
 
         /// <summary>
-        /// Получить время последнего сообщения
-        /// </summary>
-        public DateTime GetLastMessageTime() => _lastMessageTime;
-
-        /// <summary>
-        /// Фоновый полинг сообщений
+        /// Фоновый полинг сообщений — проверяет readBy для текущего устройства
         /// </summary>
         private async Task PollMessagesBackgroundAsync(CancellationToken cancellationToken)
         {
             Debug.WriteLine("[BackgroundMessageService] PollMessagesBackgroundAsync старт");
 
+            // Первый запуск — помечаем все как прочитанные, чтобы не спамить уведомлениями
+            bool isFirstPoll = true;
+
             while (!cancellationToken.IsCancellationRequested)
             {
                 try
                 {
-                    // Опрашиваем каждые 3 секунды, но только если полинг не приостановлен
-                    await Task.Delay(3000, cancellationToken);
-
-                    // ❌ Если приложение в фоне - пропускаем полинг
-                    if (_isPaused)
-                    {
-                        continue;
-                    }
+                    // В фоне опрашиваем реже (10 сек), на переднем плане — каждые 3 сек
+                    int delayMs = _isPaused ? 10000 : 3000;
+                    await Task.Delay(delayMs, cancellationToken);
 
                     if (_firebaseService == null)
                         continue;
 
-                    var newMessages = await _firebaseService.GetMessagesAfterAsync(_lastMessageTime);
+                    // Получаем сообщения, которые ещё не прочитаны этим устройством
+                    var unreadMessages = await _firebaseService.GetUnreadMessagesAsync();
 
-                    if (newMessages.Count > 0)
+                    if (unreadMessages.Count > 0)
                     {
-                        Debug.WriteLine($"[BackgroundMessageService] Новых сообщений: {newMessages.Count}");
+                        Debug.WriteLine($"[BackgroundMessageService] Непрочитанных: {unreadMessages.Count}, первый полинг: {isFirstPoll}");
 
-                        foreach (var msg in newMessages)
+                        if (isFirstPoll)
                         {
-                            _lastMessageTime = msg.Timestamp;
+                            // При первом запуске просто помечаем все как прочитанные
+                            await _firebaseService.MarkMessagesAsReadAsync(unreadMessages);
+                            isFirstPoll = false;
+                            Debug.WriteLine("[BackgroundMessageService] Первый полинг — все помечены как прочитанные");
+                            continue;
+                        }
+
+                        foreach (var msg in unreadMessages)
+                        {
+                            // Помечаем как прочитанное в Firebase
+                            if (!string.IsNullOrEmpty(msg.FirebaseKey))
+                            {
+                                await _firebaseService.MarkMessageAsReadAsync(msg.FirebaseKey);
+                            }
 
                             // Вызываем событие о новом сообщении
                             NewMessageReceived?.Invoke(this, new NewMessageEventArgs
@@ -168,8 +190,12 @@ namespace Grafik.Services
                                 SenderName = msg.Sender
                             });
 
-                            Debug.WriteLine($"[BackgroundMessageService] Событие NewMessageReceived вызвано для {msg.Sender}");
+                            Debug.WriteLine($"[BackgroundMessageService] 🔔 Новое сообщение от {msg.Sender}");
                         }
+                    }
+                    else if (isFirstPoll)
+                    {
+                        isFirstPoll = false;
                     }
                 }
                 catch (OperationCanceledException)
@@ -180,7 +206,6 @@ namespace Grafik.Services
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"[BackgroundMessageService] Ошибка полинга: {ex.Message}");
-                    // Продолжаем полинг при ошибке
                 }
             }
 

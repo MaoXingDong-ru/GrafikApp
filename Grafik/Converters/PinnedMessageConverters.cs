@@ -43,3 +43,31 @@ public class PinButtonColorConverter : IValueConverter
         throw new NotImplementedException();
     }
 }
+
+/// <summary>
+/// Конвертер Base64-строки в ImageSource для отображения изображений в чате
+/// </summary>
+public class Base64ToImageSourceConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is string base64String && !string.IsNullOrEmpty(base64String))
+        {
+            try
+            {
+                var bytes = System.Convert.FromBase64String(base64String);
+                return ImageSource.FromStream(() => new MemoryStream(bytes));
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}

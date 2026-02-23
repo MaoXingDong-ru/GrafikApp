@@ -25,13 +25,13 @@ namespace Grafik.Services
         public string Id { get; set; } = Guid.NewGuid().ToString();
         
         /// <summary>
-        /// Если это файл - содержимое файла в Base64
+        /// Если это файл/изображение — содержимое в Base64
         /// </summary>
         [JsonPropertyName("fileData")]
         public string? FileData { get; set; }
         
         /// <summary>
-        /// Имя файла (если это сообщение с файлом)
+        /// Имя файла (если это сообщение с файлом/изображением)
         /// </summary>
         [JsonPropertyName("fileName")]
         public string? FileName { get; set; }
@@ -43,7 +43,7 @@ namespace Grafik.Services
         public long FileSize { get; set; }
         
         /// <summary>
-        /// Тип: "text" или "file"
+        /// Тип: "text", "file" или "image"
         /// </summary>
         [JsonPropertyName("type")]
         public string Type { get; set; } = "text";
@@ -53,6 +53,20 @@ namespace Grafik.Services
         /// </summary>
         [JsonPropertyName("isPinned")]
         public bool IsPinned { get; set; } = false;
+
+        /// <summary>
+        /// Словарь устройств, которые уже прочитали это сообщение.
+        /// Ключ — deviceId, значение — true.
+        /// </summary>
+        [JsonPropertyName("readBy")]
+        public Dictionary<string, bool>? ReadBy { get; set; }
+
+        /// <summary>
+        /// Ключ записи в Firebase (например -Oi1-wus00QacrG69a_4).
+        /// Заполняется при чтении из базы, НЕ сериализуется при отправке.
+        /// </summary>
+        [JsonIgnore]
+        public string FirebaseKey { get; set; } = string.Empty;
     }
 
     public class FirebaseService
@@ -70,6 +84,19 @@ namespace Grafik.Services
         /// </summary>
         private const long MaxFileSizeBytes = 5 * 1024 * 1024;
 
+        /// <summary>
+        /// Максимальный размер изображения в байтах (3 MB)
+        /// </summary>
+        private const long MaxImageSizeBytes = 3 * 1024 * 1024;
+
+        /// <summary>
+        /// Поддерживаемые расширения изображений
+        /// </summary>
+        private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"
+        };
+
         public FirebaseService(string firebaseUrl)
         {
             _databaseUrl = firebaseUrl.TrimEnd('/');
@@ -77,6 +104,7 @@ namespace Grafik.Services
             Log($"🔥 FirebaseService инициализирован с URL: {_databaseUrl}");
             Log($"📋 Сообщения хранятся {MessageRetentionDays} дней");
             Log($"📎 Максимальный размер файла: {MaxFileSizeBytes / (1024 * 1024)} MB");
+            Log($"🖼️ Максимальный размер изображения: {MaxImageSizeBytes / (1024 * 1024)} MB");
             
             // Асинхронно очищаем старые сообщения при инициализации
             _ = CleanupOldMessagesAsync();
@@ -93,6 +121,34 @@ namespace Grafik.Services
         }
 
         /// <summary>
+        /// Получить уникальный идентификатор устройства.
+        /// Генерируется один раз и сохраняется в Preferences.
+        /// </summary>
+        public static string GetDeviceId()
+        {
+            const string key = "UniqueDeviceId";
+            var deviceId = Preferences.Get(key, string.Empty);
+
+            if (string.IsNullOrEmpty(deviceId))
+            {
+                deviceId = Guid.NewGuid().ToString("N")[..12];
+                Preferences.Set(key, deviceId);
+                Debug.WriteLine($"[FirebaseService] Новый DeviceId создан: {deviceId}");
+            }
+
+            return deviceId;
+        }
+
+        /// <summary>
+        /// Проверяет, является ли файл изображением по расширению
+        /// </summary>
+        public static bool IsImageFile(string filePath)
+        {
+            var ext = Path.GetExtension(filePath);
+            return !string.IsNullOrEmpty(ext) && ImageExtensions.Contains(ext);
+        }
+
+        /// <summary>
         /// Отправить текстовое сообщение в Firebase
         /// </summary>
         public async Task<bool> SendMessageAsync(string sender, string messageText)
@@ -101,12 +157,16 @@ namespace Grafik.Services
             {
                 Log($"📝 Подготовка сообщения от {sender}");
 
+                var deviceId = GetDeviceId();
+
                 var message = new FirebaseMessage
                 {
                     Sender = sender,
                     Text = messageText,
                     Timestamp = DateTime.UtcNow,
-                    Type = "text"
+                    Type = "text",
+                    // Отправитель сразу считается «прочитавшим» своё сообщение
+                    ReadBy = new Dictionary<string, bool> { { deviceId, true } }
                 };
 
                 var json = JsonSerializer.Serialize(message);
@@ -187,6 +247,8 @@ namespace Grafik.Services
                 
                 Log($"📎 Файл закодирован в Base64 ({base64Data.Length} символов)");
 
+                var deviceId = GetDeviceId();
+
                 var message = new FirebaseMessage
                 {
                     Sender = sender,
@@ -195,7 +257,8 @@ namespace Grafik.Services
                     Type = "file",
                     FileName = fileName,
                     FileData = base64Data,
-                    FileSize = fileInfo.Length
+                    FileSize = fileInfo.Length,
+                    ReadBy = new Dictionary<string, bool> { { deviceId, true } }
                 };
 
                 var json = JsonSerializer.Serialize(message);
@@ -229,6 +292,76 @@ namespace Grafik.Services
         }
 
         /// <summary>
+        /// Отправить изображение в Firebase (как Base64)
+        /// </summary>
+        public async Task<bool> SendImageMessageAsync(string sender, string imagePath)
+        {
+            try
+            {
+                if (!File.Exists(imagePath))
+                {
+                    Log($"❌ Изображение не найдено: {imagePath}");
+                    return false;
+                }
+
+                var fileName = Path.GetFileName(imagePath);
+                var fileInfo = new FileInfo(imagePath);
+
+                Log($"🖼️ Подготовка изображения: {fileName} ({fileInfo.Length} байт)");
+
+                if (fileInfo.Length > MaxImageSizeBytes)
+                {
+                    Log($"❌ Изображение слишком большое: {fileInfo.Length / (1024 * 1024)} MB (макс. {MaxImageSizeBytes / (1024 * 1024)} MB)");
+                    return false;
+                }
+
+                var fileBytes = await File.ReadAllBytesAsync(imagePath);
+                var base64Data = Convert.ToBase64String(fileBytes);
+
+                Log($"🖼️ Изображение закодировано в Base64 ({base64Data.Length} символов)");
+
+                var deviceId = GetDeviceId();
+
+                var message = new FirebaseMessage
+                {
+                    Sender = sender,
+                    Text = $"🖼️ Отправил изображение: {fileName}",
+                    Timestamp = DateTime.UtcNow,
+                    Type = "image",
+                    FileName = fileName,
+                    FileData = base64Data,
+                    FileSize = fileInfo.Length,
+                    ReadBy = new Dictionary<string, bool> { { deviceId, true } }
+                };
+
+                var json = JsonSerializer.Serialize(message);
+                Log($"🖼️ Размер сообщения: {json.Length} символов");
+
+                var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+                var url = $"{_databaseUrl}/messages.json";
+                var response = await _httpClient.PostAsync(url, content);
+
+                Log($"📊 Status Code: {(int)response.StatusCode}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Log($"✅ Изображение успешно отправлено: {fileName}");
+                    return true;
+                }
+
+                Log($"❌ Ошибка отправки изображения: {response.StatusCode}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log($"❌ Исключение при отправке изображения: {ex.Message}");
+                Log($"❌ Stack: {ex.StackTrace}");
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Извлечь файл из сообщения и сохранить локально
         /// Возвращает путь к сохраненному файлу
         /// </summary>
@@ -236,7 +369,9 @@ namespace Grafik.Services
         {
             try
             {
-                if (message.Type != "file" || string.IsNullOrEmpty(message.FileData) || string.IsNullOrEmpty(message.FileName))
+                if ((message.Type != "file" && message.Type != "image") 
+                    || string.IsNullOrEmpty(message.FileData) 
+                    || string.IsNullOrEmpty(message.FileName))
                 {
                     Log($"❌ Сообщение не содержит файл");
                     return null;
@@ -264,7 +399,7 @@ namespace Grafik.Services
         }
 
         /// <summary>
-        /// Получить все сообщения из Firebase
+        /// Получить все сообщения из Firebase (с ключами Firebase)
         /// </summary>
         public async Task<List<FirebaseMessage>> GetMessagesAsync()
         {
@@ -304,6 +439,8 @@ namespace Grafik.Services
                             var message = JsonSerializer.Deserialize<FirebaseMessage>(kvp.Value.GetRawText());
                             if (message != null)
                             {
+                                // Сохраняем ключ Firebase для последующего удаления/обновления
+                                message.FirebaseKey = kvp.Key;
                                 messages.Add(message);
                             }
                         }
@@ -334,16 +471,86 @@ namespace Grafik.Services
         }
 
         /// <summary>
-        /// Удалить сообщение по ID
+        /// Получить непрочитанные сообщения для текущего устройства.
+        /// Возвращает сообщения, в которых readBy не содержит текущий deviceId.
         /// </summary>
-        public async Task<bool> DeleteMessageAsync(string messageId)
+        public async Task<List<FirebaseMessage>> GetUnreadMessagesAsync()
+        {
+            var deviceId = GetDeviceId();
+            var allMessages = await GetMessagesAsync();
+
+            return allMessages
+                .Where(m => m.ReadBy == null || !m.ReadBy.ContainsKey(deviceId))
+                .ToList();
+        }
+
+        /// <summary>
+        /// Пометить сообщение как прочитанное на текущем устройстве (PATCH readBy.{deviceId} = true)
+        /// </summary>
+        public async Task<bool> MarkMessageAsReadAsync(string firebaseKey)
         {
             try
             {
-                var request = new HttpRequestMessage(HttpMethod.Delete, $"{_databaseUrl}/messages/{messageId}.json");
+                var deviceId = GetDeviceId();
+                var url = $"{_databaseUrl}/messages/{firebaseKey}/readBy/{deviceId}.json";
+
+                var content = new StringContent("true", System.Text.Encoding.UTF8, "application/json");
+                var request = new HttpRequestMessage(HttpMethod.Put, url) { Content = content };
                 var response = await _httpClient.SendAsync(request);
 
-                return response.IsSuccessStatusCode;
+                if (response.IsSuccessStatusCode)
+                {
+                    Log($"✅ Сообщение {firebaseKey} помечено как прочитанное для {deviceId}");
+                    return true;
+                }
+
+                Log($"❌ Ошибка пометки прочитанного: {response.StatusCode}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log($"❌ Ошибка MarkMessageAsReadAsync: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Пометить несколько сообщений как прочитанные (пакетно)
+        /// </summary>
+        public async Task MarkMessagesAsReadAsync(IEnumerable<FirebaseMessage> messages)
+        {
+            foreach (var msg in messages)
+            {
+                if (!string.IsNullOrEmpty(msg.FirebaseKey))
+                {
+                    await MarkMessageAsReadAsync(msg.FirebaseKey);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Удалить сообщение по ключу Firebase (например -Oi1-wus00QacrG69a_4)
+        /// </summary>
+        public async Task<bool> DeleteMessageByFirebaseKeyAsync(string firebaseKey)
+        {
+            try
+            {
+                var url = $"{_databaseUrl}/messages/{firebaseKey}.json";
+                Log($"🗑️ DELETE URL: {url}");
+
+                var request = new HttpRequestMessage(HttpMethod.Delete, url);
+                var response = await _httpClient.SendAsync(request);
+
+                Log($"📊 DELETE Status: {(int)response.StatusCode}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Log($"✅ Удалено по ключу Firebase: {firebaseKey}");
+                    return true;
+                }
+
+                Log($"❌ Ошибка удаления: {response.StatusCode}");
+                return false;
             }
             catch (Exception ex)
             {
@@ -353,8 +560,35 @@ namespace Grafik.Services
         }
 
         /// <summary>
-        /// Удалить все старые сообщения (старше N дней)
-        /// Вызывается автоматически при инициализации сервиса
+        /// Удалить сообщение по внутреннему ID (находит ключ Firebase, затем удаляет)
+        /// </summary>
+        public async Task<bool> DeleteMessageAsync(string messageId)
+        {
+            try
+            {
+                // Находим ключ Firebase по внутреннему ID
+                var allMessages = await GetMessagesAsync();
+                var message = allMessages.FirstOrDefault(m => m.Id == messageId);
+
+                if (message == null || string.IsNullOrEmpty(message.FirebaseKey))
+                {
+                    Log($"❌ Сообщение с ID {messageId} не найдено в Firebase");
+                    return false;
+                }
+
+                return await DeleteMessageByFirebaseKeyAsync(message.FirebaseKey);
+            }
+            catch (Exception ex)
+            {
+                Log($"❌ Ошибка удаления: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Удалить все старые сообщения (старше N дней).
+        /// Не удаляет закреплённые сообщения.
+        /// Вызывается автоматически при инициализации сервиса.
         /// </summary>
         public async Task<int> CleanupOldMessagesAsync()
         {
@@ -366,7 +600,7 @@ namespace Grafik.Services
                 var allMessages = await GetMessagesAsync();
                 
                 var oldMessages = allMessages
-                    .Where(m => m.Timestamp < cutoffTime)
+                    .Where(m => m.Timestamp < cutoffTime && !m.IsPinned)
                     .ToList();
 
                 if (oldMessages.Count == 0)
@@ -380,10 +614,20 @@ namespace Grafik.Services
                 int deletedCount = 0;
                 foreach (var message in oldMessages)
                 {
-                    if (await DeleteMessageAsync(message.Id))
+                    if (string.IsNullOrEmpty(message.FirebaseKey))
+                    {
+                        Log($"⚠️ Пропущено сообщение без FirebaseKey: {message.Id}");
+                        continue;
+                    }
+
+                    if (await DeleteMessageByFirebaseKeyAsync(message.FirebaseKey))
                     {
                         deletedCount++;
-                        Log($"🗑️ Удалено: {message.Sender} - {message.Text.Substring(0, Math.Min(30, message.Text.Length))}...");
+                        Log($"🗑️ Удалено: {message.Sender} - {message.Text[..Math.Min(30, message.Text.Length)]}...");
+                    }
+                    else
+                    {
+                        Log($"❌ Не удалось удалить: {message.FirebaseKey} ({message.Sender})");
                     }
                 }
 
@@ -423,12 +667,15 @@ namespace Grafik.Services
         {
             try
             {
-                Log($"📝 Обновление сообщения: {message.Id}");
+                // Определяем ключ: используем FirebaseKey, если есть
+                var key = !string.IsNullOrEmpty(message.FirebaseKey) ? message.FirebaseKey : message.Id;
+
+                Log($"📝 Обновление сообщения: {key}");
 
                 var json = JsonSerializer.Serialize(message);
                 var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
-                var url = $"{_databaseUrl}/messages/{message.Id}.json";
+                var url = $"{_databaseUrl}/messages/{key}.json";
                 Log($"📍 PUT URL: {url}");
 
                 var request = new HttpRequestMessage(HttpMethod.Put, url) { Content = content };
@@ -438,7 +685,7 @@ namespace Grafik.Services
 
                 if (response.IsSuccessStatusCode)
                 {
-                    Log($"✅ Сообщение успешно обновлено: {message.Id}");
+                    Log($"✅ Сообщение успешно обновлено: {key}");
                     return true;
                 }
 
@@ -461,18 +708,22 @@ namespace Grafik.Services
             {
                 Log($"📝 Обновление статуса закрепления для: {message.Id}");
 
-                // Находим ключ сообщения в Firebase (по ID)
-                var allMessages = await GetMessagesAsync();
-                var firebaseData = await GetRawMessagesDataAsync();
-                
-                string? firebaseKey = null;
-                foreach (var kvp in firebaseData)
+                // Используем сохранённый FirebaseKey, если есть
+                var firebaseKey = message.FirebaseKey;
+
+                // Если FirebaseKey не заполнен — ищем по ID
+                if (string.IsNullOrEmpty(firebaseKey))
                 {
-                    var msg = JsonSerializer.Deserialize<FirebaseMessage>(kvp.Value.GetRawText());
-                    if (msg?.Id == message.Id)
+                    var firebaseData = await GetRawMessagesDataAsync();
+                    
+                    foreach (var kvp in firebaseData)
                     {
-                        firebaseKey = kvp.Key;
-                        break;
+                        var msg = JsonSerializer.Deserialize<FirebaseMessage>(kvp.Value.GetRawText());
+                        if (msg?.Id == message.Id)
+                        {
+                            firebaseKey = kvp.Key;
+                            break;
+                        }
                     }
                 }
 

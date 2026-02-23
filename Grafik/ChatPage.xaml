@@ -5,7 +5,14 @@
              x:Class="Grafik.ChatPage"
              Title="Чат">
 
-    <Grid RowDefinitions="Auto,*,Auto" Padding="0">
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <local:Base64ToImageSourceConverter x:Key="Base64ToImage"/>
+            <local:TextToFormattedStringConverter x:Key="TextToLinks"/>
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto" Padding="0">
         <!-- Панель закреплённых сообщений -->
         <Frame x:Name="PinnedMessagesFrame"
                Padding="0"
@@ -79,11 +86,31 @@
                                   TextColor="Gray"/>
                         </Grid>
 
-                        <!-- Текст сообщения или файл -->
-                        <Label Text="{Binding Text}"
+                        <!-- Текст сообщения (для текстовых и как подпись для изображений) -->
+                        <Label FormattedText="{Binding Text, Converter={StaticResource TextToLinks}}"
                               LineBreakMode="WordWrap"
                               FontSize="14"
-                              Padding="0,0,0,5"/>
+                              Padding="0,0,0,5"
+                              IsVisible="{Binding IsText}"/>
+
+                        <!-- Блок для изображений -->
+                        <Frame Padding="5"
+                               BackgroundColor="#F5F5F5"
+                               HasShadow="True"
+                               CornerRadius="8"
+                               IsVisible="{Binding IsImage}"
+                               Margin="0">
+                            <StackLayout Spacing="5">
+                                <Image Source="{Binding ImageData, Converter={StaticResource Base64ToImage}}"
+                                      MaximumHeightRequest="300"
+                                      MaximumWidthRequest="300"
+                                      Aspect="AspectFit"
+                                      HorizontalOptions="Start"/>
+                                <Label Text="{Binding FileSizeDisplay}"
+                                      FontSize="10"
+                                      TextColor="Gray"/>
+                            </StackLayout>
+                        </Frame>
 
                         <!-- Блок для файлов -->
                         <Frame Padding="10" 
@@ -134,15 +161,52 @@
             </CollectionView.ItemTemplate>
         </CollectionView>
 
+        <!-- Панель эмодзи (скрыта по умолчанию) -->
+        <Frame x:Name="EmojiPanel"
+               Grid.Row="2"
+               IsVisible="False"
+               Padding="8"
+               Margin="0"
+               CornerRadius="0"
+               HasShadow="True"
+               BackgroundColor="#FAFAFA"
+               HeightRequest="160">
+            <ScrollView>
+                <Grid x:Name="EmojiGrid" ColumnSpacing="2" RowSpacing="2"/>
+            </ScrollView>
+        </Frame>
+
         <!-- Ввод сообщения -->
-        <Grid Grid.Row="2"
-             ColumnDefinitions="*,60,60"
-             ColumnSpacing="8"
-             Padding="10"
-             RowSpacing="10"
+        <Grid Grid.Row="3"
+             ColumnDefinitions="Auto,Auto,*,Auto,Auto"
+             ColumnSpacing="6"
+             Padding="8"
+             RowSpacing="0"
              BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}">
 
-            <Border Grid.Column="0"
+            <!-- Кнопка эмодзи -->
+            <Button x:Name="EmojiToggleButton"
+                   Grid.Column="0"
+                   Text="😀"
+                   Clicked="OnEmojiToggleClicked"
+                   BackgroundColor="Transparent"
+                   FontSize="22"
+                   Padding="4"
+                   WidthRequest="44"
+                   HeightRequest="44"/>
+
+            <!-- Кнопка изображения -->
+            <Button x:Name="ImageButton"
+                   Grid.Column="1"
+                   Text="🖼️"
+                   Clicked="OnImageClicked"
+                   BackgroundColor="Transparent"
+                   FontSize="22"
+                   Padding="4"
+                   WidthRequest="44"
+                   HeightRequest="44"/>
+
+            <Border Grid.Column="2"
                    Stroke="#CCCCCC"
                    StrokeThickness="1"
                    Padding="0">
@@ -156,20 +220,24 @@
             </Border>
 
             <Button x:Name="ShareButton"
-                   Grid.Column="1"
+                   Grid.Column="3"
                    Text="📎"
                    Clicked="OnShareFileClicked"
                    BackgroundColor="#FF9800"
                    TextColor="White"
                    FontSize="18"
-                   Padding="0"/>
+                   Padding="0"
+                   WidthRequest="50"/>
 
             <Button x:Name="SendButton"
-                   Grid.Column="2"
-                   Text="Отправить"
+                   Grid.Column="4"
+                   Text="➤"
                    Clicked="OnSendClicked"
                    BackgroundColor="#007ACC"
-                   TextColor="White"/>
+                   TextColor="White"
+                   FontSize="18"
+                   Padding="0"
+                   WidthRequest="50"/>
         </Grid>
     </Grid>
 </ContentPage>

@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 #if ANDROID
@@ -6,6 +8,8 @@ using Android.App;
 using Android.Content;
 using AndroidX.Core.App;
 using Android.OS;
+using Android.Content.PM;
+using AndroidX.Core.Content;
 #elif WINDOWS
 using Microsoft.Maui.Controls;
 #endif
@@ -22,7 +26,27 @@ namespace Grafik.Services
         private const string CHAT_CHANNEL_NAME = "Сообщения чата";
         private const string CHAT_CHANNEL_DESCRIPTION = "Уведомления о новых сообщениях в чате";
 
+        /// <summary>
+        /// Ключ в Preferences для хранения списка запланированных notification ID
+        /// </summary>
+        private const string SCHEDULED_IDS_KEY = "ScheduledNotificationIds";
+
+        /// <summary>
+        /// Ключ для хранения имени сотрудника, для которого запланированы уведомления
+        /// </summary>
+        private const string SCHEDULED_EMPLOYEE_KEY = "ScheduledNotificationEmployee";
+
 #if ANDROID
+        /// <summary>
+        /// Проверяет, разрешены ли уведомления на устройстве
+        /// </summary>
+        public static bool AreNotificationsEnabled()
+        {
+            var context = Android.App.Application.Context;
+            var notificationManager = NotificationManagerCompat.From(context);
+            return notificationManager.AreNotificationsEnabled();
+        }
+
         public static void CreateNotificationChannels()
         {
             if (Build.VERSION.SdkInt < BuildVersionCodes.O)
@@ -58,6 +82,67 @@ namespace Grafik.Services
         }
 #endif
 
+        #region Хранение запланированных ID
+
+        /// <summary>
+        /// Получить список всех сохранённых notification ID
+        /// </summary>
+        private static List<int> GetScheduledIds()
+        {
+            try
+            {
+                var json = Preferences.Get(SCHEDULED_IDS_KEY, "[]");
+                return JsonSerializer.Deserialize<List<int>>(json) ?? [];
+            }
+            catch
+            {
+                return [];
+            }
+        }
+
+        /// <summary>
+        /// Сохранить список notification ID
+        /// </summary>
+        private static void SaveScheduledIds(List<int> ids)
+        {
+            var json = JsonSerializer.Serialize(ids);
+            Preferences.Set(SCHEDULED_IDS_KEY, json);
+        }
+
+        /// <summary>
+        /// Добавить ID в список запланированных
+        /// </summary>
+        private static void TrackNotificationId(int notificationId)
+        {
+            var ids = GetScheduledIds();
+            if (!ids.Contains(notificationId))
+            {
+                ids.Add(notificationId);
+                SaveScheduledIds(ids);
+            }
+        }
+
+        /// <summary>
+        /// Очистить список запланированных ID
+        /// </summary>
+        private static void ClearTrackedIds()
+        {
+            SaveScheduledIds([]);
+        }
+
+        #endregion
+
+        /// <summary>
+        /// Генерация стабильного ID на основе данных смены (не зависит от момента вызова)
+        /// </summary>
+        private static int GenerateStableNotificationId(string title, string message, DateTime notifyTime)
+        {
+            // Округляем время до минуты для стабильности
+            var roundedTime = new DateTime(notifyTime.Year, notifyTime.Month, notifyTime.Day,
+                notifyTime.Hour, notifyTime.Minute, 0);
+            return (title + message + roundedTime.Ticks).GetHashCode() & 0x7FFFFFFF;
+        }
+
         /// <summary>
         /// Показать немедленное уведомление (для новых сообщений в чате)
         /// </summary>
@@ -67,7 +152,41 @@ namespace Grafik.Services
             try
             {
                 var context = Android.App.Application.Context;
+
+                // ✅ Проверяем разрешение POST_NOTIFICATIONS (Android 13+)
+                if (Build.VERSION.SdkInt >= BuildVersionCodes.Tiramisu)
+                {
+                    var permissionStatus = ContextCompat.CheckSelfPermission(context, 
+                        Android.Manifest.Permission.PostNotifications);
+
+                    if (permissionStatus != Permission.Granted)
+                    {
+                        System.Diagnostics.Debug.WriteLine("[NotificationService] ❌ POST_NOTIFICATIONS не предоставлен! Уведомление не будет показано.");
+                        return;
+                    }
+                }
+
+                // ✅ Проверяем, включены ли уведомления в настройках системы
+                var notificationManager = NotificationManagerCompat.From(context);
+                if (!notificationManager.AreNotificationsEnabled())
+                {
+                    System.Diagnostics.Debug.WriteLine("[NotificationService] ❌ Уведомления отключены в настройках устройства!");
+                    return;
+                }
+
+                // ✅ Убеждаемся что каналы созданы
+                CreateNotificationChannels();
+
                 int notificationId = (title + message + DateTime.Now.Ticks).GetHashCode() & 0x7FFFFFFF;
+
+                // ✅ Создаём Intent для открытия приложения при нажатии на уведомление
+                var activityIntent = new Intent(context, typeof(MainActivity));
+                activityIntent.SetFlags(ActivityFlags.NewTask | ActivityFlags.ClearTop);
+                var pendingIntent = PendingIntent.GetActivity(
+                    context,
+                    notificationId,
+                    activityIntent,
+                    PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable);
 
                 var notificationBuilder = new NotificationCompat.Builder(context, channelId)
                     .SetContentTitle(title)
@@ -75,17 +194,18 @@ namespace Grafik.Services
                     .SetAutoCancel(true)
                     .SetSmallIcon(Android.Resource.Drawable.IcDialogInfo)
                     .SetPriority(NotificationCompat.PriorityHigh)
-                    .SetStyle(new NotificationCompat.BigTextStyle().BigText(message))
-                    .SetVibrate(new long[] { 0, 250, 250, 250 });
+                    .SetDefaults((int)NotificationDefaults.All)
+                    .SetContentIntent(pendingIntent)
+                    .SetStyle(new NotificationCompat.BigTextStyle().BigText(message));
 
-                var notificationManager = NotificationManagerCompat.From(context);
                 notificationManager.Notify(notificationId, notificationBuilder.Build());
 
-                System.Diagnostics.Debug.WriteLine($"[NotificationService] Системное уведомление отправлено: {title}");
+                System.Diagnostics.Debug.WriteLine($"[NotificationService] ✅ Системное уведомление отправлено: {title} (ID: {notificationId})");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[NotificationService] Ошибка: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[NotificationService] ❌ Ошибка: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[NotificationService] Stack: {ex.StackTrace}");
             }
 
 #elif WINDOWS
@@ -115,15 +235,16 @@ namespace Grafik.Services
 
                 var context = Android.App.Application.Context;
                 
-                long triggerMillis = (long)(notifyTime - DateTime.Now).TotalMilliseconds;
-                int notificationId = (title + message + notifyTime.Ticks).GetHashCode() & 0x7FFFFFFF;
+                int notificationId = GenerateStableNotificationId(title, message, notifyTime);
+
+                // Абсолютное время в миллисекундах (UTC -> epoch)
+                long triggerAtMillis = new DateTimeOffset(notifyTime).ToUnixTimeMilliseconds();
 
                 System.Diagnostics.Debug.WriteLine($"[NotificationService] 📅 Планирование уведомления:");
                 System.Diagnostics.Debug.WriteLine($"[NotificationService]   ID: {notificationId}");
                 System.Diagnostics.Debug.WriteLine($"[NotificationService]   Название: {title}");
                 System.Diagnostics.Debug.WriteLine($"[NotificationService]   Сообщение: {message}");
                 System.Diagnostics.Debug.WriteLine($"[NotificationService]   Время: {notifyTime:yyyy-MM-dd HH:mm:ss}");
-                System.Diagnostics.Debug.WriteLine($"[NotificationService]   Через: {triggerMillis}ms ({triggerMillis / 1000}сек)");
                 System.Diagnostics.Debug.WriteLine($"[NotificationService]   Канал: {channelId}");
 
                 var intent = new Intent(context, typeof(AlarmReceiver));
@@ -143,8 +264,6 @@ namespace Grafik.Services
 
                 if (alarmManager != null)
                 {
-                    long triggerAtMillis = Java.Lang.JavaSystem.CurrentTimeMillis() + triggerMillis;
-
                     try
                     {
                         if (Build.VERSION.SdkInt >= BuildVersionCodes.S)
@@ -190,6 +309,9 @@ namespace Grafik.Services
                                 pendingIntent);
                             System.Diagnostics.Debug.WriteLine($"[NotificationService] ✅ Set использован (старые версии)");
                         }
+
+                        // Сохраняем ID для последующей отмены
+                        TrackNotificationId(notificationId);
 
                         System.Diagnostics.Debug.WriteLine($"[NotificationService] ✅ Уведомление успешно запланировано!");
                     }
@@ -355,12 +477,42 @@ namespace Grafik.Services
                 var context = Android.App.Application.Context;
                 var alarmManager = (AlarmManager)context.GetSystemService(Context.AlarmService);
 
-                if (alarmManager != null)
+                if (alarmManager == null)
+                    return;
+
+                var ids = GetScheduledIds();
+                System.Diagnostics.Debug.WriteLine($"[NotificationService] 🗑️ Отмена {ids.Count} запланированных уведомлений...");
+
+                foreach (var id in ids)
                 {
-                    // Отменяем все уведомления о сменах (по известным ID)
-                    // Это сложно реализовать без сохранения списка ID
-                    System.Diagnostics.Debug.WriteLine("[NotificationService] ⚠️ Отмена всех уведомлений требует сохранения ID");
+                    try
+                    {
+                        var intent = new Intent(context, typeof(AlarmReceiver));
+                        intent.SetAction("android.intent.action.ALARM");
+
+                        var pendingIntent = PendingIntent.GetBroadcast(
+                            context,
+                            id,
+                            intent,
+                            PendingIntentFlags.NoCreate | PendingIntentFlags.Immutable);
+
+                        if (pendingIntent != null)
+                        {
+                            alarmManager.Cancel(pendingIntent);
+                            pendingIntent.Cancel();
+                            System.Diagnostics.Debug.WriteLine($"[NotificationService] ✅ Отменён будильник ID: {id}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[NotificationService] ⚠️ Ошибка отмены ID {id}: {ex.Message}");
+                    }
                 }
+
+                ClearTrackedIds();
+                Preferences.Remove(SCHEDULED_EMPLOYEE_KEY);
+
+                System.Diagnostics.Debug.WriteLine("[NotificationService] ✅ Все уведомления отменены");
             }
             catch (Exception ex)
             {
@@ -394,8 +546,18 @@ namespace Grafik.Services
 
                 DateTime shiftStart = entry.Date.Date + startTime;
                 DateTime notifyTime = ReminderHelper.GetNotificationTime(shiftStart, reminder);
-                
-                int notificationId = ($"Смена: {entry.Shift}" + $"{entry.Employees}, смена начинается в {startTime:hh\\:mm}" + notifyTime.Ticks).GetHashCode() & 0x7FFFFFFF;
+
+                string notificationMessage = entry.Shift.ToLower() switch
+                {
+                    string s when s.Contains("ноч") => $"{entry.Employees}, ночная смена начинается в {startTime:hh\\:mm}",
+                    string s when s.Contains("днев") => $"{entry.Employees}, дневная смена начинается в {startTime:hh\\:mm}",
+                    _ => $"{entry.Employees}, смена начинается в {startTime:hh\\:mm}"
+                };
+
+                int notificationId = GenerateStableNotificationId(
+                    $"Смена: {entry.Shift}",
+                    notificationMessage,
+                    notifyTime);
 
                 var intent = new Intent(context, typeof(AlarmReceiver));
                 intent.SetAction("android.intent.action.ALARM");
@@ -409,14 +571,57 @@ namespace Grafik.Services
                 if (pendingIntent != null)
                 {
                     alarmManager.Cancel(pendingIntent);
+                    pendingIntent.Cancel();
                     System.Diagnostics.Debug.WriteLine($"[NotificationService] ✅ Отменено уведомление ID: {notificationId}");
                 }
+
+                // Удаляем из списка
+                var ids = GetScheduledIds();
+                ids.Remove(notificationId);
+                SaveScheduledIds(ids);
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[NotificationService] ❌ Ошибка отмены: {ex.Message}");
             }
 #endif
+        }
+
+        /// <summary>
+        /// Перепланировать все уведомления для конкретного сотрудника.
+        /// Сначала отменяет все старые, затем планирует новые.
+        /// </summary>
+        public static void RescheduleAllForEmployee(string employeeName, List<ShiftEntry> schedule, ReminderOption reminder)
+        {
+            System.Diagnostics.Debug.WriteLine($"[NotificationService] 🔄 Перепланирование уведомлений для {employeeName}");
+
+            // 1. Отменяем ВСЕ старые будильники
+            CancelAllShiftNotifications();
+
+            // 2. Сохраняем имя сотрудника, для которого планируем
+            Preferences.Set(SCHEDULED_EMPLOYEE_KEY, employeeName);
+
+            // 3. Планируем только для текущего сотрудника
+            var employeeEntries = schedule
+                .Where(e => string.Equals(e.Employees, employeeName, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            int count = 0;
+            foreach (var entry in employeeEntries)
+            {
+                ScheduleShiftNotification(entry, reminder);
+                count++;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[NotificationService] ✅ Перепланировано {count} уведомлений для {employeeName}");
+        }
+
+        /// <summary>
+        /// Получить имя сотрудника, для которого запланированы текущие уведомления
+        /// </summary>
+        public static string GetScheduledEmployee()
+        {
+            return Preferences.Get(SCHEDULED_EMPLOYEE_KEY, string.Empty);
         }
     }
 }

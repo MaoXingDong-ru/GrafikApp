@@ -8,6 +8,11 @@ public partial class App : Application
     private static bool _backgroundServiceStarted = false;
     public static bool IsAppInForeground { get; private set; } = false;
 
+    /// <summary>
+    /// Флаг: открыт ли сейчас экран чата (уведомления не нужны, пользователь видит сообщения)
+    /// </summary>
+    public static bool IsChatPageActive { get; set; } = false;
+
     public App()
     {
         InitializeComponent();
@@ -55,7 +60,7 @@ public partial class App : Application
             Debug.WriteLine("[App] Window.Resumed - приложение активировалось");
             IsAppInForeground = true;
             
-            // ✅ Возобновляем полинг
+            // ✅ Возобновляем частый полинг
             BackgroundMessageService.Instance.Resume();
         };
 
@@ -64,7 +69,7 @@ public partial class App : Application
             Debug.WriteLine("[App] Window.Stopped - приложение свернулось");
             IsAppInForeground = false;
             
-            // ⏸️ Приостанавливаем полинг чтобы не тратить трафик и батарею
+            // ⏸️ Переключаемся на редкий полинг (но НЕ останавливаем!)
             BackgroundMessageService.Instance.Pause();
         };
 
@@ -95,26 +100,24 @@ public partial class App : Application
     {
         Debug.WriteLine($"[App] Новое сообщение от {e.SenderName}: {e.Message.Text}");
 
-        // Получаем текущее имя пользователя
-        var currentUserName = Preferences.Get("SelectedEmployee", string.Empty);
-
-        // Не показываем уведомление о собственных сообщениях
-        if (e.Message.Sender == currentUserName)
-            return;
-
-        // ✅ ПОКАЗЫВАЕМ УВЕДОМЛЕНИЕ ТОЛЬКО ЕСЛИ ПРИЛОЖЕНИЕ ОТКРЫТО
-        if (!IsAppInForeground)
+        // Не показываем уведомление, если чат открыт и приложение на переднем плане
+        if (IsAppInForeground && IsChatPageActive)
         {
-            Debug.WriteLine($"[App] Приложение в фоне - уведомление о чате не показано");
+            Debug.WriteLine("[App] Чат открыт — уведомление не показываем");
             return;
         }
 
         try
         {
-            // Показываем СИСТЕМНОЕ push-уведомление (в трее)
-            string messagePreview = e.Message.Type == "file"
-                ? $"📎 {e.Message.FileName}"
-                : (e.Message.Text.Length > 50 ? e.Message.Text.Substring(0, 50) + "..." : e.Message.Text);
+            // Формируем превью сообщения
+            string messagePreview = e.Message.Type switch
+            {
+                "file" => $"📎 {e.Message.FileName}",
+                "image" => $"🖼️ {e.Message.FileName ?? "Изображение"}",
+                _ => e.Message.Text.Length > 80
+                    ? e.Message.Text[..80] + "..."
+                    : e.Message.Text
+            };
 
             // 🔔 СИСТЕМНОЕ уведомление
             NotificationService.ShowInstantNotification(
@@ -122,7 +125,7 @@ public partial class App : Application
                 messagePreview,
                 NotificationService.CHAT_CHANNEL_ID);
 
-            Debug.WriteLine($"[App] Уведомление показано для {e.SenderName}");
+            Debug.WriteLine($"[App] 🔔 Уведомление показано: {e.SenderName} — {messagePreview}");
         }
         catch (Exception ex)
         {
