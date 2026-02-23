@@ -122,6 +122,9 @@
 	  <Compile Update="EmployeeSchedulePage.xaml.cs">
 	    <DependentUpon>EmployeeSchedulePage.xaml</DependentUpon>
 	  </Compile>
+	  <Compile Update="BugReportPage.xaml.cs">
+	    <DependentUpon>BugReportPage.xaml</DependentUpon>
+	  </Compile>
 	</ItemGroup>
 
 	<ItemGroup>
@@ -129,6 +132,9 @@
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="EmployeeSchedulePage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="BugReportPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	</ItemGroup>

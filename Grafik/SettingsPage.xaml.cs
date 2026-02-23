@@ -162,6 +162,14 @@ public partial class SettingsPage : ContentPage
             await DisplayAlert("Ошибка", $"Не удалось подключиться: {ex.Message}", "OK");
         }
     }
+
+    /// <summary>
+    /// Открыть страницу баг-репортов и предложений
+    /// </summary>
+    private async void OnBugReportClicked(object sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new BugReportPage());
+    }
 }
 
 public class AppSettings

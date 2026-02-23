@@ -57,6 +57,28 @@
                     TextColor="White"
                     Padding="10"/>
 
+            <!-- Разделитель -->
+            <BoxView Color="#DDDDDD" HeightRequest="1" Margin="0,10"/>
+
+            <!-- Баг-репорты -->
+            <VerticalStackLayout Spacing="8">
+                <Label Text="Обратная связь:" 
+                       FontSize="16" 
+                       FontAttributes="Bold"/>
+
+                <Label Text="Сообщите о найденных ошибках или предложите новый функционал" 
+                       FontSize="12"
+                       TextColor="Gray"/>
+
+                <Button Text="🐛  Баг-репорты и предложения"
+                        Clicked="OnBugReportClicked"
+                        BackgroundColor="#F44336"
+                        TextColor="White"
+                        FontSize="15"
+                        Padding="12"
+                        CornerRadius="8"/>
+            </VerticalStackLayout>
+
         </VerticalStackLayout>
     </ScrollView>
 
