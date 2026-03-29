@@ -1,60 +1,83 @@
 ﻿<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="Grafik.MainPage">
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:Grafik.Controls"
+             x:Class="Grafik.MainPage"
+             Title="График"
+             BackgroundColor="#1E1E1E">
 
     <AbsoluteLayout>
-        <!-- Основной контент -->
-        <ScrollView AbsoluteLayout.LayoutBounds="0,0,1,1" 
-                    AbsoluteLayout.LayoutFlags="All">
-            <StackLayout Padding="20" Spacing="15" x:Name="MainStackLayout">
-                <!-- Первая группа элементов (начальное состояние) -->
-                <StackLayout x:Name="FirstStepGroup">
-                    <Label Text="Загрузи Excel файл расписания" 
-                           FontSize="22" 
-                           HorizontalOptions="Center" />
-                    
-                    <Label x:Name="Transp1" 
-                           BackgroundColor="Transparent"></Label>
+        <Grid RowDefinitions="Auto,*"
+              AbsoluteLayout.LayoutBounds="0,0,1,1"
+              AbsoluteLayout.LayoutFlags="All">
+            
+            <!-- Верхняя панель с индикатором -->
+            <Grid Grid.Row="0" 
+                  Padding="15,10" 
+                  BackgroundColor="#2D2D2D"
+                  ColumnDefinitions="*,Auto">
+                
+                <Label Grid.Column="0"
+                       Text="📅 Расписание"
+                       FontSize="18"
+                       FontAttributes="Bold"
+                       TextColor="White"
+                       VerticalOptions="Center"/>
+                
+                <!-- Индикатор соединения -->
+                <controls:ConnectionIndicator Grid.Column="1"/>
+            </Grid>
 
-                    <Button Text="Загрузить EXCEL" 
-                            Clicked="OnLoadExcelClicked"
-                            HorizontalOptions="FillAndExpand"
-                            BackgroundColor="#191968"
-                            TextColor="White"/>
+            <!-- Основной контент -->
+            <ScrollView Grid.Row="1">
+                <StackLayout Padding="20" Spacing="15" x:Name="MainStackLayout">
+                    <!-- Первая группа элементов (начальное состояние) -->
+                    <StackLayout x:Name="FirstStepGroup">
+                        <Label Text="Загрузи Excel файл расписания" 
+                               FontSize="22" 
+                               HorizontalOptions="Center" />
+                        
+                        <Label x:Name="Transp1" 
+                               BackgroundColor="Transparent"/>
+
+                        <Button Text="Загрузить EXCEL" 
+                                Clicked="OnLoadExcelClicked"
+                                HorizontalOptions="FillAndExpand"
+                                BackgroundColor="#191968"
+                                TextColor="White"/>
+                    </StackLayout>
+
+                    <!-- Вторая группа элементов (изначально скрыта) -->
+                    <StackLayout x:Name="SecondStepGroup" IsVisible="False">
+                        <Label x:Name="Instruction2" 
+                               Text="Выбери сотрудника" 
+                               FontSize="22" 
+                               HorizontalOptions="Center"/>
+                        
+                        <Label x:Name="Transp2" 
+                               BackgroundColor="Transparent"/>
+                        
+                        <Picker x:Name="EmployeePicker" 
+                                SelectedIndexChanged="OnEmployeeSelected"
+                                HorizontalOptions="FillAndExpand"/>
+                        
+                        <Label x:Name="Transp3" BackgroundColor="Transparent"/>
+
+                        <Button x:Name="LoadSchedule" 
+                                Text="Показать расписание" 
+                                Clicked="LoadScheduleForEmployeer"
+                                HorizontalOptions="FillAndExpand"
+                                BackgroundColor="#191968"
+                                TextColor="White"/>
+                    </StackLayout>
+
+                    <Label x:Name="MessageLabel" 
+                           IsVisible="False"
+                           HorizontalOptions="Center"
+                           TextColor="Red"/>
                 </StackLayout>
+            </ScrollView>
+        </Grid>
 
-                <!-- Вторая группа элементов (изначально скрыта) -->
-                <StackLayout x:Name="SecondStepGroup" IsVisible="False">
-                    <Label x:Name="Instruction2" 
-                           Text="Выбери сотрудника" 
-                           FontSize="22" 
-                           HorizontalOptions="Center"/>
-                    
-                    <Label x:Name="Transp2" 
-                           BackgroundColor="Transparent"></Label>
-                    
-                    <Picker x:Name="EmployeePicker" 
-                            SelectedIndexChanged="OnEmployeeSelected"
-                            HorizontalOptions="FillAndExpand"/>
-                    
-                    <Label x:Name="Transp3" BackgroundColor="Transparent"></Label>
-
-                    <Button x:Name="LoadSchedule" 
-                            Text="Показать расписание" 
-                            Clicked="LoadScheduleForEmployeer"
-                            HorizontalOptions="FillAndExpand"
-                            BackgroundColor="#191968"
-                            TextColor="White"/>
-                </StackLayout>
-
-                <Label x:Name="MessageLabel" 
-                       IsVisible="False"
-                       HorizontalOptions="Center"
-                       TextColor="Red"/>
-            </StackLayout>
-        </ScrollView>
-
-        <!-- Кнопки в нижней части (слева направо) -->
         <!-- Кнопка удаления (слева снизу) -->
         <Button x:Name="DeleteData"
                 Text="🗑"
@@ -65,9 +88,8 @@
                 BackgroundColor="DarkRed"
                 TextColor="White"
                 Clicked="DeleteAllFiles"
-                TranslationX="-50"
-                AbsoluteLayout.LayoutBounds="0,1,50,50"
-                AbsoluteLayout.LayoutFlags="PositionProportional" />
+                AbsoluteLayout.LayoutBounds="10,1,50,50"
+                AbsoluteLayout.LayoutFlags="YProportional" />
 
         <!-- Кнопка чата (центр снизу) -->
         <Button x:Name="ChatButton"
@@ -79,9 +101,9 @@
                 BackgroundColor="#4CAF50"
                 TextColor="White"
                 Clicked="GoToChat"
-                IsVisible="False"
+                IsVisible="False"   
                 AbsoluteLayout.LayoutBounds="0.5,1,50,50"
-                AbsoluteLayout.LayoutFlags="PositionProportional"/>
+                AbsoluteLayout.LayoutFlags="XProportional,YProportional"/>
 
         <!-- Кнопка настроек (справа снизу) --> 
         <Button x:Name="SettingsButton"
@@ -93,8 +115,8 @@
                 BackgroundColor="#007ACC"
                 TextColor="White"
                 Clicked="GoToSettings"
-                AbsoluteLayout.LayoutBounds="1,1,50,50"
-                AbsoluteLayout.LayoutFlags="PositionProportional" />
+                AbsoluteLayout.LayoutBounds="1,1,60,50"
+                AbsoluteLayout.LayoutFlags="XProportional,YProportional" />
 
         <!-- Скрытые кнопки для тестирования -->
         <Button Text="Тест мгновенного уведомления" 

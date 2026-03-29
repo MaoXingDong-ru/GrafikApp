@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using Microsoft.Maui.Graphics;
 
 namespace Grafik
@@ -7,22 +8,43 @@ namespace Grafik
     public class ShiftEntry
     {
         // Основная информация
+        [JsonPropertyName("date")]
         public DateTime Date { get; set; }
-        public string Shift { get; set; }      // Дневная, Ночная, Выходной и т.д.
-        public string Worktime { get; set; }   // Время работы (например, 08:00-20:00)
+
+        [JsonPropertyName("shift")]
+        public string Shift { get; set; } = string.Empty;
+
+        [JsonPropertyName("worktime")]
+        public string Worktime { get; set; } = string.Empty;
 
         // Сотрудники
-        public string Employees { get; set; }
+        [JsonPropertyName("employees")]
+        public string Employees { get; set; } = string.Empty;
+
+        [JsonPropertyName("isSecondLine")]
         public bool IsSecondLine { get; set; } = false;
-        public List<string> OtherEmployeesWithSameShift { get; set; } = new();
-        public string DisplayOtherEmployees { get; set; }
-        public string SecondLinePartner { get; set; }
+
+        // UI-only свойства (не сериализуются в JSON)
+        [JsonIgnore]
+        public List<string> OtherEmployeesWithSameShift { get; set; } = [];
+
+        [JsonIgnore]
+        public string? DisplayOtherEmployees { get; set; }
+
+        [JsonIgnore]
+        public string? SecondLinePartner { get; set; }
 
         // Для календаря
-        public Color TileColor { get; set; } = Colors.Transparent; // Цвет плитки по типу смены
-        public Color BorderColor { get; set; } = Colors.Transparent; // Цвет обводки (сегодняшний день)
+        [JsonIgnore]
+        public Color TileColor { get; set; } = Colors.Transparent;
 
-        // Видимость дня в календаре (false для пустых ячеек в начале месяца)
+        [JsonIgnore]
+        public Color BorderColor { get; set; } = Colors.Transparent;
+
+        [JsonIgnore]
         public bool IsVisibleDay { get; set; } = true;
+
+        [JsonIgnore]
+        public string ShiftDisplayText { get; set; } = string.Empty;
     }
 }

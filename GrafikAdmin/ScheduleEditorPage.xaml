@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="GrafikAdmin.ScheduleEditorPage"
+             Title="Редактор расписания"
+             BackgroundColor="#1E1E1E">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        
+        <!-- Заголовок месяца -->
+        <Border Grid.Row="0" Padding="15" BackgroundColor="#3D3D3D" StrokeThickness="0">
+            <Label x:Name="MonthLabel" 
+                   Text="Месяц" 
+                   FontSize="20" 
+                   FontAttributes="Bold"
+                   TextColor="White"
+                   HorizontalOptions="Center"/>
+        </Border>
+
+        <!-- Таблица расписания с закреплённым столбцом -->
+        <Grid Grid.Row="1" Margin="10" ColumnDefinitions="120,*">
+            
+            <!-- Закреплённый столбец сотрудников (слева) -->
+            <Grid x:Name="EmployeesColumn" 
+                  Grid.Column="0" 
+                  RowSpacing="2"
+                  BackgroundColor="#1E1E1E">
+                <!-- Заполняется динамически -->
+            </Grid>
+            
+            <!-- Прокручиваемая область с датами и сменами -->
+            <ScrollView Grid.Column="1" 
+                        Orientation="Horizontal"
+                        HorizontalScrollBarVisibility="Always">
+                <Grid x:Name="ScheduleGrid" RowSpacing="2" ColumnSpacing="2">
+                    <!-- Динамически заполняется -->
+                </Grid>
+            </ScrollView>
+            
+        </Grid>
+
+        <!-- Кнопки управления -->
+        <Grid Grid.Row="2" 
+              Padding="10" 
+              ColumnDefinitions="*,*,*" 
+              BackgroundColor="#2D2D2D">
+            <Button Grid.Column="0"
+                    Text="💾 Сохранить"
+                    BackgroundColor="#4CAF50"
+                    TextColor="White"
+                    FontSize="14"
+                    HeightRequest="45"
+                    CornerRadius="10"
+                    Margin="5"
+                    Clicked="OnSaveClicked"/>
+            <Button Grid.Column="1"
+                    Text="☁️ В чат"
+                    BackgroundColor="#2196F3"
+                    TextColor="White"
+                    FontSize="14"
+                    HeightRequest="45"
+                    CornerRadius="10"
+                    Margin="5"
+                    Clicked="OnUploadToChatClicked"/>
+            <Button Grid.Column="2"
+                    Text="📊 Excel"
+                    BackgroundColor="#FF9800"
+                    TextColor="White"
+                    FontSize="14"
+                    HeightRequest="45"
+                    CornerRadius="10"
+                    Margin="5"
+                    Clicked="OnExportClicked"/>
+        </Grid>
+        
+    </Grid>
+
+</ContentPage>

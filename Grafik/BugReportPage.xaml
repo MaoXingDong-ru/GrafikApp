@@ -20,131 +20,140 @@
             </CollectionView.EmptyView>
             <CollectionView.ItemTemplate>
                 <DataTemplate>
-                    <Border Stroke="{Binding StatusColor}"
-                            StrokeThickness="1"
-                            StrokeShape="RoundRectangle 8"
-                            Padding="12"
-                            Margin="10,6"
-                            BackgroundColor="{Binding CardBackgroundColor}">
-                        <StackLayout Spacing="6">
-
-                            <!-- Заголовок: статус + тип -->
-                            <Grid ColumnDefinitions="Auto,*,Auto">
-                                <Label Grid.Column="0"
-                                       Text="{Binding StatusDisplay}"
-                                       FontSize="11"
-                                       TextColor="{Binding StatusColor}"
-                                       FontAttributes="Bold"/>
-                                <Label Grid.Column="2"
-                                       Text="{Binding TypeDisplay}"
-                                       FontSize="11"
-                                       TextColor="Gray"/>
-                            </Grid>
-
-                            <!-- Дата -->
-                            <Label Text="{Binding TimestampDisplay, StringFormat='Дата: {0}'}"
-                                   FontSize="11"
-                                   TextColor="Gray"/>
-
-                            <!-- Тема и описание -->
-                            <Border BackgroundColor="#FFCDD2"
-                                    StrokeThickness="0"
-                                    StrokeShape="RoundRectangle 6"
-                                    Padding="10">
-                                <StackLayout Spacing="2">
-                                    <Label Text="{Binding Title}"
-                                           FontSize="14"
-                                           FontAttributes="Bold"
-                                           TextColor="#333"/>
-                                    <Label Text="{Binding Steps}"
-                                           FontSize="13"
-                                           TextColor="#555"
-                                           LineBreakMode="WordWrap"/>
-                                </StackLayout>
-                            </Border>
-
-                            <!-- Отправитель -->
-                            <Label Text="{Binding Sender, StringFormat='Автор: {0}'}"
-                                   FontSize="11"
-                                   TextColor="Gray"
-                                   Margin="0,2,0,0"/>
-
-                            <!-- Комментарий разработчика (виден всем, если есть) -->
-                            <Border BackgroundColor="#E3F2FD"
-                                    StrokeThickness="0"
-                                    StrokeShape="RoundRectangle 6"
-                                    Padding="10"
-                                    IsVisible="{Binding HasDevComment}">
-                                <StackLayout Spacing="2">
-                                    <Label Text="💬 Комментарий разработчика"
-                                           FontSize="11"
-                                           TextColor="#1565C0"
-                                           FontAttributes="Bold"/>
-                                    <Label Text="{Binding DevComment}"
-                                           FontSize="13"
-                                           TextColor="#333"
-                                           LineBreakMode="WordWrap"/>
-                                </StackLayout>
-                            </Border>
-
-                            <!-- Панель разработчика (видна только Сальников Степан) -->
-                            <Border BackgroundColor="#FFFDE7"
-                                    Stroke="#FFC107"
+                    <SwipeView>
+                        <SwipeView.Content>
+                            <Border Stroke="{Binding StatusColor}"
                                     StrokeThickness="1"
-                                    StrokeShape="RoundRectangle 6"
-                                    Padding="10"
-                                    IsVisible="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.IsDev}">
-                                <StackLayout Spacing="8">
-                                    <Label Text="🛠 Панель разработчика"
+                                    StrokeShape="RoundRectangle 8"
+                                    Padding="12"
+                                    Margin="10,6"
+                                    BackgroundColor="{Binding CardBackgroundColor}"
+                                    InputTransparent="False">
+                                <VerticalStackLayout Spacing="6" InputTransparent="False">
+
+                                    <!-- Заголовок: статус + тип -->
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <Label Grid.Column="0"
+                                               Text="{Binding StatusDisplay}"
+                                               FontSize="11"
+                                               TextColor="{Binding StatusColor}"
+                                               FontAttributes="Bold"/>
+                                        <Label Grid.Column="2"
+                                               Text="{Binding TypeDisplay}"
+                                               FontSize="11"
+                                               TextColor="Gray"/>
+                                    </Grid>
+
+                                    <!-- Дата -->
+                                    <Label Text="{Binding TimestampDisplay, StringFormat='Дата: {0}'}"
                                            FontSize="11"
-                                           TextColor="#F57F17"
-                                           FontAttributes="Bold"/>
+                                           TextColor="Gray"/>
 
-                                    <!-- Выбор статуса -->
-                                    <Label Text="Статус:" FontSize="11" TextColor="#333"/>
-                                    <Border Stroke="#BDBDBD"
-                                            StrokeThickness="1"
-                                            StrokeShape="RoundRectangle 4"
-                                            BackgroundColor="White"
-                                            Padding="4,0">
-                                        <Picker SelectedIndex="{Binding StatusIndex}"
-                                                ItemsSource="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.StatusOptions}"
-                                                FontSize="13"
-                                                TextColor="#333"
-                                                TitleColor="#999"/>
+                                    <!-- Тема и описание -->
+                                    <Border BackgroundColor="#FFCDD2"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 6"
+                                            Padding="10">
+                                        <VerticalStackLayout Spacing="2">
+                                            <Label Text="{Binding Title}"
+                                                   FontSize="14"
+                                                   FontAttributes="Bold"
+                                                   TextColor="#333"/>
+                                            <Label Text="{Binding Steps}"
+                                                   FontSize="13"
+                                                   TextColor="#555"
+                                                   LineBreakMode="WordWrap"/>
+                                        </VerticalStackLayout>
                                     </Border>
 
-                                    <!-- Комментарий -->
-                                    <Label Text="Комментарий:" FontSize="11" TextColor="#333"/>
-                                    <Border Stroke="#BDBDBD"
-                                            StrokeThickness="1"
-                                            StrokeShape="RoundRectangle 4"
-                                            BackgroundColor="White"
-                                            Padding="4">
-                                        <Editor Placeholder="Обоснование, пояснение..."
-                                                PlaceholderColor="#999"
-                                                Text="{Binding DevComment}"
-                                                TextColor="#333"
-                                                FontSize="13"
-                                                HeightRequest="60"
-                                                AutoSize="TextChanges"/>
+                                    <!-- Отправитель -->
+                                    <Label Text="{Binding Sender, StringFormat='Автор: {0}'}"
+                                           FontSize="11"
+                                           TextColor="Gray"
+                                           Margin="0,2,0,0"/>
+
+                                    <!-- Комментарий разработчика (виден всем, если есть) -->
+                                    <Border BackgroundColor="#E3F2FD"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 6"
+                                            Padding="10"
+                                            IsVisible="{Binding HasDevComment}">
+                                        <VerticalStackLayout Spacing="2">
+                                            <Label Text="💬 Комментарий разработчика"
+                                                   FontSize="11"
+                                                   TextColor="#1565C0"
+                                                   FontAttributes="Bold"/>
+                                            <Label Text="{Binding DevComment}"
+                                                   FontSize="13"
+                                                   TextColor="#333"
+                                                   LineBreakMode="WordWrap"/>
+                                        </VerticalStackLayout>
                                     </Border>
 
-                                    <!-- Одна кнопка — отправить всё -->
-                                    <Button Text="💾 Сохранить"
-                                            FontSize="12"
-                                            HeightRequest="36"
-                                            Padding="8,0"
-                                            BackgroundColor="#FF8F00"
-                                            TextColor="White"
-                                            CornerRadius="4"
-                                            CommandParameter="{Binding .}"
-                                            Clicked="OnSaveDevResponseClicked"/>
-                                </StackLayout>
+                                    <!-- Панель разработчика (видна только Сальников Степан) -->
+                                    <Border BackgroundColor="#FFFDE7"
+                                            Stroke="#FFC107"
+                                            StrokeThickness="1"
+                                            StrokeShape="RoundRectangle 6"
+                                            Padding="10"
+                                            IsVisible="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.IsDev}">
+                                        <VerticalStackLayout Spacing="8" InputTransparent="False">
+                                            <Label Text="🛠 Панель разработчика"
+                                                   FontSize="11"
+                                                   TextColor="#F57F17"
+                                                   FontAttributes="Bold"/>
+
+                                            <!-- Выбор статуса -->
+                                            <Label Text="Статус:" FontSize="11" TextColor="#333"/>
+                                            <Border Stroke="#BDBDBD"
+                                                    StrokeThickness="1"
+                                                    StrokeShape="RoundRectangle 4"
+                                                    BackgroundColor="White"
+                                                    Padding="4,0"
+                                                    InputTransparent="False">
+                                                <Picker SelectedIndex="{Binding StatusIndex}"
+                                                        ItemsSource="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.StatusOptions}"
+                                                        FontSize="13"
+                                                        TextColor="#333"
+                                                        TitleColor="#999"
+                                                        InputTransparent="False"/>
+                                            </Border>
+
+                                            <!-- Комментарий -->
+                                            <Label Text="Комментарий:" FontSize="11" TextColor="#333"/>
+                                            <Border Stroke="#BDBDBD"
+                                                    StrokeThickness="1"
+                                                    StrokeShape="RoundRectangle 4"
+                                                    BackgroundColor="White"
+                                                    Padding="4"
+                                                    InputTransparent="False">
+                                                <Editor Placeholder="Обоснование, пояснение..."
+                                                        PlaceholderColor="#999"
+                                                        Text="{Binding DevComment}"
+                                                        TextColor="#333"
+                                                        FontSize="13"
+                                                        HeightRequest="60"
+                                                        AutoSize="TextChanges"
+                                                        InputTransparent="False"/>
+                                            </Border>
+
+                                            <!-- Одна кнопка — отправить всё -->
+                                            <Button Text="💾 Сохранить"
+                                                    FontSize="12"
+                                                    HeightRequest="36"
+                                                    Padding="8,0"
+                                                    BackgroundColor="#FF8F00"
+                                                    TextColor="White"
+                                                    CornerRadius="4"
+                                                    CommandParameter="{Binding .}"
+                                                    Clicked="OnSaveDevResponseClicked"/>
+                                        </VerticalStackLayout>
+                                    </Border>
+
+                                </VerticalStackLayout>
                             </Border>
-
-                        </StackLayout>
-                    </Border>
+                        </SwipeView.Content>
+                    </SwipeView>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>
@@ -158,7 +167,7 @@
                 StrokeShape="RoundRectangle 12,12,0,0"
                 BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}"
                 Padding="14">
-            <StackLayout Spacing="10">
+            <VerticalStackLayout Spacing="10">
 
                 <Label Text="Новое обращение"
                        FontSize="16"
@@ -200,7 +209,7 @@
                             CornerRadius="6"/>
                 </Grid>
 
-            </StackLayout>
+            </VerticalStackLayout>
         </Border>
 
         <!-- Кнопка «+» для создания нового обращения -->

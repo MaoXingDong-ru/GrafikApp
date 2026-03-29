@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:converters="clr-namespace:Grafik.Converters"
+             x:Class="Grafik.ShiftSwapPage"
+             Title="Поменяться сменами"
+             BackgroundColor="#1E1E1E">
+
+    <ContentPage.Resources>
+        <converters:StringNotEmptyConverter x:Key="StringNotEmptyConverter" />
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="*, Auto">
+
+        <!-- Убран ItemsSource - используем только Header для прокрутки -->
+        <CollectionView Grid.Row="0" 
+                        x:Name="MainCollectionView">
+
+            <CollectionView.Header>
+                <VerticalStackLayout Padding="16" Spacing="12">
+
+                    <!-- Заголовок -->
+                    <Label Text="🔄 Обмен сменами"
+                           FontSize="22"
+                           FontAttributes="Bold"
+                           TextColor="White"
+                           HorizontalOptions="Center" />
+
+                    <Label x:Name="EmployeeLabel"
+                           Text="Сотрудник: —"
+                           FontSize="14"
+                           TextColor="#AAAAAA"
+                           HorizontalOptions="Center" />
+
+                    <!-- Шаг 1: Выбор своего дня -->
+                    <Border BackgroundColor="#2D2D2D" 
+                            Padding="12" 
+                            StrokeShape="RoundRectangle 10"
+                            Stroke="#3D3D3D">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="📅 Шаг 1: Ваша смена"
+                                   FontSize="15"
+                                   FontAttributes="Bold"
+                                   TextColor="White" />
+
+                            <Label Text="Выберите дату, которую хотите обменять:"
+                                   FontSize="12"
+                                   TextColor="#888888" />
+
+                            <CollectionView x:Name="MyShiftsCollection"
+                                            HeightRequest="90"
+                                            SelectionMode="Single"
+                                            SelectionChanged="OnMyShiftSelected">
+                                <CollectionView.ItemsLayout>
+                                    <LinearItemsLayout Orientation="Horizontal" ItemSpacing="6" />
+                                </CollectionView.ItemsLayout>
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="6"
+                                                WidthRequest="70"
+                                                HeightRequest="70"
+                                                StrokeShape="RoundRectangle 8"
+                                                BackgroundColor="{Binding TileColor}"
+                                                Stroke="{Binding BorderColor}"
+                                                StrokeThickness="2">
+                                            <VerticalStackLayout Spacing="2" 
+                                                                 VerticalOptions="Center"
+                                                                 HorizontalOptions="Center">
+                                                <Label Text="{Binding Date, StringFormat='{0:dd}'}"
+                                                       FontSize="20"
+                                                       FontAttributes="Bold"
+                                                       HorizontalOptions="Center"
+                                                       TextColor="White" />
+                                                <Label Text="{Binding Date, StringFormat='{0:ddd}'}"
+                                                       FontSize="10"
+                                                       HorizontalOptions="Center"
+                                                       TextColor="White" />
+                                                <Label Text="{Binding Shift}"
+                                                       FontSize="9"
+                                                       HorizontalOptions="Center"
+                                                       TextColor="White"
+                                                       LineBreakMode="TailTruncation"
+                                                       MaxLines="1" />
+                                            </VerticalStackLayout>
+                                        </Border>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+
+                            <Label x:Name="SelectedMyDayLabel"
+                                   Text="Выбрано: —"
+                                   FontSize="12"
+                                   TextColor="#64B5F6"
+                                   FontAttributes="Bold" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Шаг 2: Выбор дня для обмена -->
+                    <Border x:Name="Step2Frame"
+                            BackgroundColor="#2D2D2D"
+                            Padding="12"
+                            StrokeShape="RoundRectangle 10"
+                            Stroke="#3D3D3D"
+                            IsVisible="False">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="📅 Шаг 2: День для обмена"
+                                   FontSize="15"
+                                   FontAttributes="Bold"
+                                   TextColor="White" />
+
+                            <Label Text="Выберите день, на который хотите поменяться:"
+                                   FontSize="12"
+                                   TextColor="#888888" />
+
+                            <CollectionView x:Name="TargetDaysCollection"
+                                            HeightRequest="90"
+                                            SelectionMode="Single"
+                                            SelectionChanged="OnTargetDaySelected">
+                                <CollectionView.ItemsLayout>
+                                    <LinearItemsLayout Orientation="Horizontal" ItemSpacing="6" />
+                                </CollectionView.ItemsLayout>
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="6"
+                                                WidthRequest="70"
+                                                HeightRequest="70"
+                                                StrokeShape="RoundRectangle 8"
+                                                BackgroundColor="{Binding TileColor}"
+                                                Stroke="{Binding BorderColor}"
+                                                StrokeThickness="2">
+                                            <VerticalStackLayout Spacing="2"
+                                                                 VerticalOptions="Center"
+                                                                 HorizontalOptions="Center">
+                                                <Label Text="{Binding Date, StringFormat='{0:dd}'}"
+                                                       FontSize="20"
+                                                       FontAttributes="Bold"
+                                                       HorizontalOptions="Center"
+                                                       TextColor="White" />
+                                                <Label Text="{Binding Date, StringFormat='{0:ddd}'}"
+                                                       FontSize="10"
+                                                       HorizontalOptions="Center"
+                                                       TextColor="White" />
+                                                <Label Text="{Binding Shift}"
+                                                       FontSize="9"
+                                                       HorizontalOptions="Center"
+                                                       TextColor="White"
+                                                       LineBreakMode="TailTruncation"
+                                                       MaxLines="1" />
+                                            </VerticalStackLayout>
+                                        </Border>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+
+                            <Label x:Name="SelectedTargetDayLabel"
+                                   Text="Выбрано: —"
+                                   FontSize="12"
+                                   TextColor="#64B5F6"
+                                   FontAttributes="Bold" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Шаг 3: Выбор сотрудника -->
+                    <Border x:Name="Step3Frame"
+           BackgroundColor="#2D2D2D"
+           Padding="12"
+           StrokeShape="RoundRectangle 10"
+           Stroke="#3D3D3D"
+           IsVisible="False">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="👤 Шаг 3: Выберите сотрудника"
+                  FontSize="15"
+                  FontAttributes="Bold"
+                  TextColor="White" />
+
+                            <Label x:Name="EmployeesWorkingLabel"
+                  Text="Сотрудники, работающие в этот день:"
+                  FontSize="12"
+                  TextColor="#888888" />
+
+                            <CollectionView x:Name="EmployeesCollection"
+                                            SelectionMode="Single"
+                                            SelectionChanged="OnEmployeeSelected">
+                                <CollectionView.ItemsLayout>
+                                    <LinearItemsLayout Orientation="Vertical" ItemSpacing="10" />
+                                </CollectionView.ItemsLayout>
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="12"
+                                                Margin="0,0,0,10"
+                                                StrokeShape="RoundRectangle 8"
+                                                BackgroundColor="#3D3D3D"
+                                                Stroke="#4D4D4D">
+                                            <HorizontalStackLayout Spacing="10">
+                                                <Label Text="👤" FontSize="18" VerticalOptions="Center" />
+                                                <VerticalStackLayout VerticalOptions="Center">
+                                                    <Label Text="{Binding Employees}"
+                                                           FontSize="14"
+                                                           FontAttributes="Bold"
+                                                           TextColor="White" />
+                                                </VerticalStackLayout>
+                                            </HorizontalStackLayout>
+                                        </Border>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+
+                            <Label x:Name="SelectedEmployeeLabel"
+                  Text="Выбран: —"
+                  FontSize="12"
+                  TextColor="#64B5F6"
+                  FontAttributes="Bold" />
+                        </VerticalStackLayout>
+                    </Border>
+                    <!-- Итоговая информация -->
+                    <Border x:Name="SummaryFrame"
+                            BackgroundColor="#1B5E20"
+                            Padding="12"
+                            StrokeShape="RoundRectangle 10"
+                            Stroke="#2E7D32"
+                            IsVisible="False">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="📋 Итог обмена"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   TextColor="White" />
+
+                            <Label x:Name="SummaryLabel"
+                                   Text=""
+                                   FontSize="13"
+                                   TextColor="#E8F5E9"
+                                   LineBreakMode="WordWrap" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Мои запросы -->
+                    <Border BackgroundColor="#2D2D2D"
+                            Padding="12"
+                            StrokeShape="RoundRectangle 10"
+                            Stroke="#3D3D3D">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="📋 Мои запросы"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   TextColor="White" />
+
+                            <CollectionView x:Name="MyRequestsCollection">
+                                <CollectionView.EmptyView>
+                                    <Label Text="Нет активных запросов"
+                                           TextColor="#888888"
+                                           FontSize="13"
+                                           HorizontalOptions="Center" />
+                                </CollectionView.EmptyView>
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="10"
+                                                Margin="0,3"
+                                                StrokeShape="RoundRectangle 8"
+                                                BackgroundColor="{Binding CardBackgroundColor}"
+                                                Stroke="#4D4D4D">
+                                            <VerticalStackLayout Spacing="6">
+                                                <HorizontalStackLayout Spacing="8">
+                                                    <Label Text="{Binding StatusDisplay}"
+                                                           FontSize="13"
+                                                           FontAttributes="Bold"
+                                                           TextColor="{Binding StatusColor}" />
+                                                    <Label Text="{Binding CreatedAtDisplay}"
+                                                           FontSize="11"
+                                                           TextColor="Black"
+                                                           VerticalOptions="Center" />
+                                                </HorizontalStackLayout>
+
+                                                <Label Text="{Binding SwapDescription}"
+                                                       FontSize="12"
+                                                       TextColor="Black"
+                                                       LineBreakMode="WordWrap" />
+
+                                                <Label Text="{Binding AdminComment, StringFormat='💬 {0}'}"
+                                                       FontSize="11"
+                                                       TextColor="Black"
+                                                       IsVisible="{Binding AdminComment, Converter={StaticResource StringNotEmptyConverter}}" />
+
+                                                <Button Text="❌ Отменить"
+                                                        BackgroundColor="#C62828"
+                                                        TextColor="White"
+                                                        FontSize="11"
+                                                        HeightRequest="32"
+                                                        CornerRadius="6"
+                                                        IsVisible="{Binding IsPending}"
+                                                        CommandParameter="{Binding .}"
+                                                        Clicked="OnCancelRequestClicked" />
+                                            </VerticalStackLayout>
+                                        </Border>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Отступ снизу -->
+                    <BoxView HeightRequest="70" Color="Transparent" />
+
+                </VerticalStackLayout>
+            </CollectionView.Header>
+
+        </CollectionView>
+
+        <!-- Кнопка отправки -->
+        <Border Grid.Row="1"
+                x:Name="SendButtonFrame"
+                BackgroundColor="#2D2D2D"
+                Padding="16,12"
+                StrokeShape="RoundRectangle 0"
+                Stroke="#3D3D3D"
+                IsVisible="{Binding Source={x:Reference SummaryFrame}, Path=IsVisible}">
+            <Button x:Name="SendRequestButton"
+                    Text="📤 Отправить запрос"
+                    BackgroundColor="#4CAF50"
+                    TextColor="White"
+                    FontSize="16"
+                    FontAttributes="Bold"
+                    CornerRadius="10"
+                    HeightRequest="50"
+                    HorizontalOptions="Fill"
+                    Clicked="OnSendRequestClicked" />
+        </Border>
+
+    </Grid>
+</ContentPage>

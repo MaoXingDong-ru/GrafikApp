@@ -99,7 +99,8 @@
                                                    HorizontalOptions="Center"
                                                    FontSize="18"
                                                    FontAttributes="Bold"/>
-                                            <Label Text="{Binding Shift}" FontSize="10"
+                                            <Label Text="{Binding ShiftDisplayText}" 
+                                                   FontSize="10"
                                                    HorizontalOptions="Center"/>
                                         </StackLayout>
                                     </Frame>
@@ -124,5 +125,17 @@
                 Margin="0,0,10,10"
                 AbsoluteLayout.LayoutBounds="1,1,50,50"
                 AbsoluteLayout.LayoutFlags="PositionProportional" />
+
+        <Button Text="🔄 Поменяться"
+                FontSize="14"
+                HeightRequest="45"
+                CornerRadius="22"
+                Padding="20,0"
+                BackgroundColor="#1976D2"
+                TextColor="White"
+                Clicked="OnSwapClicked"
+                AbsoluteLayout.LayoutBounds="0.5,1,AutoSize,AutoSize"
+                AbsoluteLayout.LayoutFlags="PositionProportional"
+                Margin="0,0,0,15" />
     </AbsoluteLayout>
 </ContentPage>

@@ -1,0 +1,200 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:GrafikAdmin.Controls"
+             x:Class="GrafikAdmin.MainPage"
+             Title="График Админ"
+             BackgroundColor="#1E1E1E">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        
+        <!-- Верхняя панель с индикатором -->
+        <Grid Grid.Row="0" 
+              Padding="15,10" 
+              BackgroundColor="#2D2D2D"
+              ColumnDefinitions="*,Auto,Auto">
+            
+            <Label Grid.Column="0"
+                   Text="📅 Управление расписанием"
+                   FontSize="18"
+                   FontAttributes="Bold"
+                   TextColor="White"
+                   VerticalOptions="Center"/>
+
+            <!-- Кнопка запросов на обмен с счётчиком -->
+            <Grid Grid.Column="1" Margin="0,0,10,0">
+                <Button x:Name="SwapRequestsButton"
+                        Text="🔄 Запросы"
+                        BackgroundColor="#FF5722"
+                        TextColor="White"
+                        FontSize="14"
+                        HeightRequest="40"
+                        CornerRadius="20"
+                        Padding="15,0"
+                        Clicked="OnSwapRequestsClicked"/>
+                
+                <!-- Счётчик (бейдж) -->
+                <Frame x:Name="SwapBadge"
+                       BackgroundColor="#F44336"
+                       CornerRadius="12"
+                       Padding="6,2"
+                       HasShadow="False"
+                       HorizontalOptions="End"
+                       VerticalOptions="Start"
+                       Margin="0,-5,-5,0"
+                       IsVisible="False">
+                    <Label x:Name="SwapBadgeLabel"
+                           Text="0"
+                           TextColor="White"
+                           FontSize="11"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center"/>
+                </Frame>
+            </Grid>
+            
+            <!-- Индикатор соединения -->
+            <controls:ConnectionIndicator Grid.Column="2"/>
+        </Grid>
+
+        <!-- Основной контент -->
+        <ScrollView Grid.Row="1" Padding="20">
+            <StackLayout Spacing="12">
+                
+                <!-- Кнопки действий -->
+                <Frame Padding="15" 
+                       BackgroundColor="#2D2D2D" 
+                       BorderColor="#3D3D3D"
+                       CornerRadius="15" 
+                       HasShadow="False">
+                    <StackLayout Spacing="10">
+                        
+                        <Button Text="👥 Список сотрудников"
+                                BackgroundColor="#2196F3"
+                                TextColor="White"
+                                FontSize="16"
+                                HeightRequest="50"
+                                CornerRadius="10"
+                                Clicked="OnEmployeesClicked"/>
+
+                        <Button Text="📝 Создать новое расписание"
+                                BackgroundColor="#4CAF50"
+                                TextColor="White"
+                                FontSize="16"
+                                HeightRequest="50"
+                                CornerRadius="10"
+                                Clicked="OnCreateScheduleClicked"/>
+
+                        <Button Text="📊 Экспорт в Excel"
+                                BackgroundColor="#FF9800"
+                                TextColor="White"
+                                FontSize="16"
+                                HeightRequest="50"
+                                CornerRadius="10"
+                                Clicked="OnExportExcelClicked"/>
+
+                        <Button Text="💬 Отправить в чат"
+                                BackgroundColor="#9C27B0"
+                                TextColor="White"
+                                FontSize="16"
+                                HeightRequest="50"
+                                CornerRadius="10"
+                                Clicked="OnSendToChatClicked"/>
+                    </StackLayout>
+                </Frame>
+
+                <!-- Список расписаний -->
+                <Frame Padding="15" 
+                       BackgroundColor="#2D2D2D" 
+                       BorderColor="#3D3D3D"
+                       CornerRadius="15" 
+                       HasShadow="False">
+                    <StackLayout Spacing="10">
+                        <StackLayout Orientation="Horizontal">
+                            <Label Text="📁" FontSize="24"/>
+                            <StackLayout Spacing="0" VerticalOptions="Center">
+                                <Label Text="Сохранённые расписания" 
+                                       FontSize="16" 
+                                       FontAttributes="Bold"
+                                       TextColor="White"/>
+                                <Label Text="(хранятся последние 3 месяца)" 
+                                       FontSize="12" 
+                                       TextColor="#808080"/>
+                            </StackLayout>
+                        </StackLayout>
+                        
+                        <CollectionView x:Name="SchedulesList"
+                                        SelectionMode="Single"
+                                        SelectionChanged="OnScheduleSelected"
+                                        MinimumHeightRequest="150">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Frame Padding="12" 
+                                           Margin="0,4" 
+                                           BackgroundColor="#1E1E1E" 
+                                           BorderColor="#3D3D3D"
+                                           CornerRadius="10"
+                                           HasShadow="False">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <StackLayout Grid.Column="0" Spacing="2">
+                                                <Label Text="{Binding DisplayName}" 
+                                                       FontSize="16" 
+                                                       FontAttributes="Bold"
+                                                       TextColor="White"/>
+                                                <Label Text="{Binding CreatedAt, StringFormat='Создано: {0:dd.MM.yyyy HH:mm}'}" 
+                                                       FontSize="12" 
+                                                       TextColor="#808080"/>
+                                            </StackLayout>
+                                            <Label Grid.Column="1" 
+                                                   Text="→" 
+                                                   FontSize="20" 
+                                                   TextColor="#808080"
+                                                   VerticalOptions="Center"/>
+                                        </Grid>
+                                    </Frame>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                            <CollectionView.EmptyView>
+                                <StackLayout VerticalOptions="Center" 
+                                             HorizontalOptions="Center"
+                                             Padding="20">
+                                    <Label Text="📭" FontSize="40" HorizontalOptions="Center"/>
+                                    <Label Text="Нет сохранённых расписаний" 
+                                           TextColor="#808080"
+                                           HorizontalOptions="Center"/>
+                                </StackLayout>
+                            </CollectionView.EmptyView>
+                        </CollectionView>
+                    </StackLayout>
+                </Frame>
+
+            </StackLayout>
+        </ScrollView>
+
+        <!-- Нижняя панель -->
+        <Grid Grid.Row="2" 
+              Padding="10" 
+              BackgroundColor="#2D2D2D" 
+              ColumnDefinitions="*,*">
+            <Button Grid.Column="0"
+                    Text="⚙️ Настройки"
+                    BackgroundColor="#607D8B"
+                    TextColor="White"
+                    FontSize="14"
+                    HeightRequest="45"
+                    CornerRadius="10"
+                    Margin="5"
+                    Clicked="OnSettingsClicked"/>
+            <Button Grid.Column="1"
+                    Text="ℹ️ О приложении"
+                    BackgroundColor="#607D8B"
+                    TextColor="White"
+                    FontSize="14"
+                    HeightRequest="45"
+                    CornerRadius="10"
+                    Margin="5"
+                    Clicked="OnAboutClicked"/>
+        </Grid>
+        
+    </Grid>
+
+</ContentPage>

@@ -9,182 +9,340 @@
         <ResourceDictionary>
             <local:Base64ToImageSourceConverter x:Key="Base64ToImage"/>
             <local:TextToFormattedStringConverter x:Key="TextToLinks"/>
+            <local:NameToInitialsConverter x:Key="NameToInitials"/>
+            <local:NameToColorConverter x:Key="NameToColor"/>
+            <local:PinnedBackgroundConverter x:Key="PinnedBackgroundConverter"/>
+            <local:PinButtonColorConverter x:Key="PinButtonColorConverter"/>
+            <local:BoolToAlignmentConverter x:Key="BoolToAlignment"/>
+            <local:BoolToBubbleMarginConverter x:Key="BoolToBubbleMargin"/>
+            <local:BoolToBubbleBackgroundConverter x:Key="BoolToBubbleBackground"/>
+            <local:InverseBoolConverter x:Key="InverseBool"/>
         </ResourceDictionary>
     </ContentPage.Resources>
 
-    <Grid RowDefinitions="Auto,*,Auto,Auto" Padding="0">
-        <!-- Панель закреплённых сообщений -->
+    <Grid RowDefinitions="Auto,*,Auto,Auto,Auto" Padding="0">
+
+        <!-- Объединённая верхняя панель: слева — обычные закрепления, справа — файлы расписания админа -->
         <Frame x:Name="PinnedMessagesFrame"
-               Padding="0"
+               Grid.Row="0"
+               Padding="10,8,10,8"
                Margin="0"
                CornerRadius="0"
                HasShadow="True"
-               BackgroundColor="#FFF3E0"
-               IsVisible="False"
-               Grid.Row="0">
-            <CollectionView x:Name="PinnedMessagesCollectionView"
-                           SelectionMode="Single"
-                           ItemsUpdatingScrollMode="KeepScrollOffset"
-                           HeightRequest="100">
-                <CollectionView.ItemsLayout>
-                    <LinearItemsLayout Orientation="Horizontal" ItemSpacing="8"/>
-                </CollectionView.ItemsLayout>
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Border StrokeThickness="2" 
-                                Stroke="#FF9800" 
-                                Padding="10"
-                                BackgroundColor="White"
-                                StrokeShape="RoundRectangle 8,8,8,8"
-                                Margin="5">
-                            <StackLayout Spacing="5" WidthRequest="150">
-                                <Label Text="📌 Закреплено"
-                                      FontSize="10"
-                                      TextColor="#FF6F00"
-                                      FontAttributes="Bold"/>
-                                <Label Text="{Binding FileName, StringFormat='📎 {0}'}"
-                                      FontAttributes="Bold"
-                                      TextColor="#2E7D32"
-                                      FontSize="11"
-                                      LineBreakMode="TailTruncation"/>
-                                <Label Text="{Binding FileSizeDisplay}"
-                                      FontSize="9"
-                                      TextColor="Gray"/>
-                                <Button Text="Открыть"
-                                       Clicked="OnPinnedMessageClicked"
-                                       CommandParameter="{Binding .}"
-                                       BackgroundColor="#FF9800"
-                                       TextColor="White"
-                                       Padding="5"
-                                       FontSize="11"
-                                       CornerRadius="4"/>
-                            </StackLayout>
-                        </Border>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
+               BackgroundColor="#BBDEFB"
+               IsVisible="False">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+
+                <!-- Слева: обычные закреплённые сообщения -->
+                <CollectionView x:Name="PinnedMessagesCollectionView"
+                                SelectionMode="None"
+                                HeightRequest="70">
+                    <CollectionView.ItemsLayout>
+                        <LinearItemsLayout Orientation="Vertical" ItemSpacing="0"/>
+                    </CollectionView.ItemsLayout>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Padding="0,4" ColumnSpacing="12">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnPinnedMessageClicked"/>
+                                </Grid.GestureRecognizers>
+
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="4"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <BoxView Grid.Column="0"
+                                         BackgroundColor="#1976D2"
+                                         WidthRequest="4"
+                                         CornerRadius="2"
+                                         VerticalOptions="Fill"/>
+
+                                <StackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                                    <Label Text="📌 Закреплено"
+                                           FontSize="11"
+                                           TextColor="#0D47A1"
+                                           FontAttributes="Bold"
+                                           Margin="0"/>
+                                    <Label Text="{Binding Sender}"
+                                           FontSize="12"
+                                           TextColor="#212121"
+                                           FontAttributes="Bold"
+                                           Margin="0"/>
+                                    <Label Text="{Binding PinnedPreviewText}"
+                                           FontSize="13"
+                                           TextColor="#424242"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="1"
+                                           Margin="0"/>
+                                </StackLayout>
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <!-- Справа: горизонтальная панель с файлами расписания от админа -->
+                <ScrollView x:Name="PinnedScheduleFilesPanel"
+                            Grid.Column="1"
+                            Orientation="Horizontal"
+                            HorizontalScrollBarVisibility="Never"
+                            VerticalOptions="Fill"
+                            WidthRequest="320">
+                    <HorizontalStackLayout Spacing="12"
+                                           BindableLayout.ItemsSource="{Binding Source={x:Reference PinnedScheduleFilesCollectionView}, Path=ItemsSource}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate>
+                                <Border StrokeThickness="2"
+                                        Stroke="#EF6C00"
+                                        Padding="12"
+                                        BackgroundColor="White"
+                                        StrokeShape="RoundRectangle 10"
+                                        WidthRequest="280"
+                                        HeightRequest="110">
+                                    <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="6">
+                                        <Label Grid.Row="0"
+                                               Text="📋 Актуальное расписание"
+                                               FontSize="12"
+                                               TextColor="#E64A19"
+                                               FontAttributes="Bold"
+                                               HorizontalOptions="Start"/>
+                                        <Label Grid.Row="1"
+                                               Text="{Binding FileName, StringFormat='📎 {0}'}"
+                                               FontAttributes="Bold"
+                                               TextColor="#1B5E20"
+                                               FontSize="13"
+                                               LineBreakMode="TailTruncation"
+                                               MaxLines="1"/>
+                                        <Label Grid.Row="2"
+                                               Text="{Binding FileSizeDisplay}"
+                                               FontSize="11"
+                                               TextColor="#424242"/>
+                                        <Button Grid.Row="3"
+                                                Text="⬇ Загрузить расписание"
+                                                Clicked="OnDownloadFileClicked"
+                                                CommandParameter="{Binding .}"
+                                                BackgroundColor="#388E3C"
+                                                TextColor="White"
+                                                Padding="10,8"
+                                                FontSize="13"
+                                                FontAttributes="Bold"
+                                                CornerRadius="6"
+                                                VerticalOptions="End"
+                                                HorizontalOptions="Fill"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </HorizontalStackLayout>
+                </ScrollView>
+            </Grid>
         </Frame>
 
-        <!-- История сообщений -->
+        <!-- Скрытый CollectionView остаётся как источник для BindableLayout -->
+        <CollectionView x:Name="PinnedScheduleFilesCollectionView"
+                        Grid.Row="0"
+                        IsVisible="False"
+                        HeightRequest="0"/>
+
+        <!-- История сообщений (теперь в Row=1) -->
         <CollectionView x:Name="MessagesCollectionView"
                        Grid.Row="1"
-                       SelectionMode="Single"
+                       SelectionMode="None"
                        VerticalScrollBarVisibility="Always">
             <CollectionView.ItemTemplate>
                 <DataTemplate>
-                    <StackLayout Padding="10,5" Spacing="5">
-                        <!-- Имя отправителя + время -->
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                            <Label Grid.Column="0"
-                                  Text="{Binding Sender}"
-                                  FontAttributes="Bold"
-                                  FontSize="13"
-                                  TextColor="#007ACC"/>
-                            <Label Grid.Column="1"
-                                  Text="{Binding Timestamp, StringFormat='{0:HH:mm}'}"
-                                  FontSize="11"
-                                  TextColor="Gray"/>
-                        </Grid>
+                    <StackLayout Padding="0,2"
+                                HorizontalOptions="Fill">
 
-                        <!-- Текст сообщения (для текстовых и как подпись для изображений) -->
-                        <Label FormattedText="{Binding Text, Converter={StaticResource TextToLinks}}"
-                              LineBreakMode="WordWrap"
-                              FontSize="14"
-                              Padding="0,0,0,5"
-                              IsVisible="{Binding IsText}"/>
+                        <Border StrokeThickness="0"
+                                StrokeShape="RoundRectangle 12"
+                                BackgroundColor="{Binding IsMine, Converter={StaticResource BoolToBubbleBackground}}"
+                                Margin="{Binding IsMine, Converter={StaticResource BoolToBubbleMargin}}"
+                                Padding="10,8"
+                                MaximumWidthRequest="500"
+                                HorizontalOptions="{Binding IsMine, Converter={StaticResource BoolToAlignment}}">
 
-                        <!-- Блок для изображений -->
-                        <Frame Padding="5"
-                               BackgroundColor="#F5F5F5"
-                               HasShadow="True"
-                               CornerRadius="8"
-                               IsVisible="{Binding IsImage}"
-                               Margin="0">
-                            <StackLayout Spacing="5">
-                                <Image Source="{Binding ImageData, Converter={StaticResource Base64ToImage}}"
-                                      MaximumHeightRequest="300"
-                                      MaximumWidthRequest="300"
-                                      Aspect="AspectFit"
-                                      HorizontalOptions="Start"/>
-                                <Label Text="{Binding FileSizeDisplay}"
-                                      FontSize="10"
-                                      TextColor="Gray"/>
-                            </StackLayout>
-                        </Frame>
+                            <StackLayout Spacing="4">
 
-                        <!-- Блок для файлов -->
-                        <Frame Padding="10" 
-                               BackgroundColor="{Binding IsMessagePinned, Converter={local:PinnedBackgroundConverter}}"
-                               HasShadow="True" 
-                               CornerRadius="8"
-                               IsVisible="{Binding IsFile}"
-                               Margin="0">
-                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
-                                <StackLayout Grid.Column="0" Spacing="3">
-                                    <Label Text="{Binding FileName, StringFormat='📎 {0}'}"
+                                <Grid ColumnDefinitions="30,*,Auto" ColumnSpacing="6"
+                                      IsVisible="{Binding IsNotMine}">
+                                    <Border Grid.Column="0"
+                                           WidthRequest="30"
+                                           HeightRequest="30"
+                                           StrokeShape="RoundRectangle 15"
+                                           BackgroundColor="{Binding Sender, Converter={StaticResource NameToColor}}"
+                                           Stroke="Transparent"
+                                           VerticalOptions="Center">
+                                        <Label Text="{Binding Initials}"
+                                              FontSize="12"
+                                              FontAttributes="Bold"
+                                              TextColor="White"
+                                              HorizontalOptions="Center"
+                                              VerticalOptions="Center"/>
+                                    </Border>
+                                    <Label Grid.Column="1"
+                                          Text="{Binding Sender}"
                                           FontAttributes="Bold"
-                                          TextColor="#2E7D32"
-                                          FontSize="12"/>
+                                          FontSize="12"
+                                          TextColor="#005A9E"
+                                          VerticalOptions="Center"/>
+                                    <Label Grid.Column="2"
+                                          Text="{Binding Timestamp, StringFormat='{0:HH:mm}'}"
+                                          FontSize="10"
+                                          TextColor="Gray"
+                                          VerticalOptions="Center"/>
+                                </Grid>
+
+                                <Label Text="{Binding Timestamp, StringFormat='{0:HH:mm}'}"
+                                      FontSize="10"
+                                      TextColor="Gray"
+                                      HorizontalOptions="End"
+                                      IsVisible="{Binding IsMine}"/>
+
+                                <Border IsVisible="{Binding HasReply}"
+                                       Padding="6"
+                                       BackgroundColor="#BBDEFB"
+                                       StrokeThickness="0"
+                                       StrokeShape="RoundRectangle 4">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnPinnedMessageClicked"/>
+                                    </Border.GestureRecognizers>
+                                    <StackLayout Spacing="2">
+                                        <Label Text="{Binding ReplyToSender, StringFormat='↩️ {0}'}"
+                                              FontSize="10"
+                                              FontAttributes="Bold"
+                                              TextColor="#0D47A1"/>
+                                        <Label Text="{Binding ReplyToText}"
+                                              FontSize="10"
+                                              TextColor="#424242"
+                                              LineBreakMode="TailTruncation"
+                                              MaxLines="2"/>
+                                    </StackLayout>
+                                </Border>
+
+                                <Label FormattedText="{Binding Text, Converter={StaticResource TextToLinks}}"
+                                      LineBreakMode="WordWrap"
+                                      FontSize="14"
+                                      IsVisible="{Binding IsText}">
+                                    <Label.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnMessageLongPress"/>
+                                    </Label.GestureRecognizers>
+                                </Label>
+
+                                <StackLayout Spacing="4"
+                                            IsVisible="{Binding IsImage}">
+                                    <Image Source="{Binding ImageData, Converter={StaticResource Base64ToImage}}"
+                                          MaximumHeightRequest="250"
+                                          MaximumWidthRequest="250"
+                                          Aspect="AspectFit"
+                                          HorizontalOptions="Start">
+                                        <Image.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="OnMessageLongPress"/>
+                                        </Image.GestureRecognizers>
+                                    </Image>
                                     <Label Text="{Binding FileSizeDisplay}"
                                           FontSize="10"
                                           TextColor="Gray"/>
                                 </StackLayout>
 
-                                <Button Grid.Column="1"
-                                       Text="{Binding PinButtonText}"
-                                       Clicked="OnPinFileClicked"
-                                       CommandParameter="{Binding .}"
-                                       BackgroundColor="{Binding IsMessagePinned, Converter={local:PinButtonColorConverter}}"
-                                       TextColor="White"
-                                       Padding="12,8"
-                                       FontSize="11"
-                                       VerticalOptions="Center"
-                                       HorizontalOptions="Center"/>
+                                <Border Padding="8"
+                                       BackgroundColor="{Binding IsMessagePinned, Converter={StaticResource PinnedBackgroundConverter}}"
+                                       StrokeThickness="0"
+                                       StrokeShape="RoundRectangle 6"
+                                       IsVisible="{Binding IsFileButNotAdminSchedule}">
+                                    <StackLayout Spacing="6">
+                                        <Label Text="{Binding FileName, StringFormat='📎 {0}'}"
+                                              FontAttributes="Bold"
+                                              TextColor="#1B5E20"
+                                              FontSize="12"/>
+                                        <Label Text="{Binding FileSizeDisplay}"
+                                              FontSize="10"
+                                              TextColor="Gray"/>
+                                        <HorizontalStackLayout Spacing="8"
+                                                              HorizontalOptions="End">
+                                            <Button Text="{Binding PinButtonText}"
+                                                   Clicked="OnPinFileClicked"
+                                                   CommandParameter="{Binding .}"
+                                                   BackgroundColor="{Binding IsMessagePinned, Converter={StaticResource PinButtonColorConverter}}"
+                                                   TextColor="White"
+                                                   Padding="10,6"
+                                                   FontSize="11"
+                                                   CornerRadius="4"/>
+                                            <Button Text="⬇ Загрузить"
+                                                   Clicked="OnDownloadFileClicked"
+                                                   CommandParameter="{Binding .}"
+                                                   BackgroundColor="#388E3C"
+                                                   TextColor="White"
+                                                   Padding="10,6"
+                                                   FontSize="11"
+                                                   CornerRadius="4"/>
+                                        </HorizontalStackLayout>
+                                    </StackLayout>
+                                </Border>
 
-                                <Button Grid.Column="2"
-                                       Text="⬇ Загрузить"
-                                       Clicked="OnDownloadFileClicked"
-                                       CommandParameter="{Binding .}"
-                                       BackgroundColor="#4CAF50"
-                                       TextColor="White"
-                                       Padding="15,10"
-                                       FontSize="13"
-                                       VerticalOptions="Center"
-                                       HorizontalOptions="Center"
-                                       CornerRadius="6"/>
-                            </Grid>
-                        </Frame>
-                        <!-- Разделитель -->
-                        <BoxView Color="#CCCCCC" HeightRequest="1" Margin="0,5"/>
+                            </StackLayout>
+                        </Border>
                     </StackLayout>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>
 
-        <!-- Панель эмодзи (скрыта по умолчанию) -->
-        <Frame x:Name="EmojiPanel"
+        <!-- Панель ответа (Row=2) -->
+        <Frame x:Name="ReplyPreviewPanel"
                Grid.Row="2"
+               IsVisible="False"
+               Padding="10"
+               Margin="8,0"
+               BackgroundColor="#BBDEFB"
+               CornerRadius="8"
+               HasShadow="True">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <StackLayout Grid.Column="0" Spacing="3">
+                    <Label x:Name="ReplyToSenderLabel"
+                          FontSize="12"
+                          FontAttributes="Bold"
+                          TextColor="#0D47A1"/>
+                    <Label x:Name="ReplyToTextLabel"
+                          FontSize="11"
+                          TextColor="#424242"
+                          LineBreakMode="TailTruncation"
+                          MaxLines="2"/>
+                </StackLayout>
+                <Button Grid.Column="1"
+                       Text="✖"
+                       Clicked="OnCancelReplyClicked"
+                       BackgroundColor="Transparent"
+                       TextColor="#D32F2F"
+                       FontSize="18"
+                       Padding="0"
+                       WidthRequest="30"
+                       HeightRequest="30"/>
+            </Grid>
+        </Frame>
+
+        <!-- Панель эмодзи (Row=3) -->
+        <Frame x:Name="EmojiPanel"
+               Grid.Row="3"
                IsVisible="False"
                Padding="8"
                Margin="0"
                CornerRadius="0"
                HasShadow="True"
-               BackgroundColor="#FAFAFA"
+               BackgroundColor="#F0F0F0"
                HeightRequest="160">
             <ScrollView>
                 <Grid x:Name="EmojiGrid" ColumnSpacing="2" RowSpacing="2"/>
             </ScrollView>
         </Frame>
 
-        <!-- Ввод сообщения -->
-        <Grid Grid.Row="3"
+        <!-- Ввод сообщения (Row=4) -->
+        <Grid Grid.Row="4"
              ColumnDefinitions="Auto,Auto,*,Auto,Auto"
              ColumnSpacing="6"
              Padding="8"
              RowSpacing="0"
              BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}">
 
-            <!-- Кнопка эмодзи -->
             <Button x:Name="EmojiToggleButton"
                    Grid.Column="0"
                    Text="😀"
@@ -195,7 +353,6 @@
                    WidthRequest="44"
                    HeightRequest="44"/>
 
-            <!-- Кнопка изображения -->
             <Button x:Name="ImageButton"
                    Grid.Column="1"
                    Text="🖼️"
@@ -207,12 +364,12 @@
                    HeightRequest="44"/>
 
             <Border Grid.Column="2"
-                   Stroke="#CCCCCC"
+                   Stroke="#888888"
                    StrokeThickness="1"
                    Padding="0">
                 <Entry x:Name="MessageEntry"
                       Placeholder="Введите сообщение..."
-                      PlaceholderColor="#999999"
+                      PlaceholderColor="#666666"
                       TextColor="#000000"
                       BackgroundColor="#FFFFFF"
                       FontSize="14"
@@ -223,7 +380,7 @@
                    Grid.Column="3"
                    Text="📎"
                    Clicked="OnShareFileClicked"
-                   BackgroundColor="#FF9800"
+                   BackgroundColor="#F57C00"
                    TextColor="White"
                    FontSize="18"
                    Padding="0"
@@ -233,7 +390,7 @@
                    Grid.Column="4"
                    Text="➤"
                    Clicked="OnSendClicked"
-                   BackgroundColor="#007ACC"
+                   BackgroundColor="#005A9E"
                    TextColor="White"
                    FontSize="18"
                    Padding="0"

@@ -2,6 +2,7 @@ using Grafik.Services;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Linq;
 
 namespace Grafik;
 
@@ -9,15 +10,14 @@ public partial class ChatPage : ContentPage
 {
     private FirebaseService _firebaseService = null!;
     private ObservableCollection<FirebaseMessageViewModel> _messages = new();
-    private ObservableCollection<FirebaseMessageViewModel> _pinnedMessages = new();
+    private ObservableCollection<FirebaseMessageViewModel> _pinnedMessages = new(); // Обычные закреплённые
+    private ObservableCollection<FirebaseMessageViewModel> _pinnedScheduleFiles = new(); // Файлы расписания от админа
     private CancellationTokenSource _cancellationTokenSource = null!;
     private DateTime _lastMessageTime = DateTime.MinValue;
     private string _currentUserName = string.Empty;
     private bool _isEmojiPanelVisible = false;
+    private FirebaseMessageViewModel? _replyToMessage = null;
 
-    /// <summary>
-    /// Набор эмодзи для быстрой вставки
-    /// </summary>
     private static readonly string[] EmojiList =
     [
         "😀", "😂", "🤣", "😊", "😍", "🥰", "😎", "🤔",
@@ -33,6 +33,7 @@ public partial class ChatPage : ContentPage
         Debug.WriteLine("[ChatPage] Constructor без параметров");
         MessagesCollectionView.ItemsSource = _messages;
         PinnedMessagesCollectionView.ItemsSource = _pinnedMessages;
+        PinnedScheduleFilesCollectionView.ItemsSource = _pinnedScheduleFiles;
         _currentUserName = Preferences.Get("SelectedEmployee", "Неизвестно");
         BuildEmojiPanel();
     }
@@ -43,6 +44,7 @@ public partial class ChatPage : ContentPage
         Debug.WriteLine($"[ChatPage] Constructor с параметром: {userName}");
         MessagesCollectionView.ItemsSource = _messages;
         PinnedMessagesCollectionView.ItemsSource = _pinnedMessages;
+        PinnedScheduleFilesCollectionView.ItemsSource = _pinnedScheduleFiles;
         _currentUserName = userName;
         Title = $"Чат - {userName}";
         BuildEmojiPanel();
@@ -89,7 +91,6 @@ public partial class ChatPage : ContentPage
     {
         if (sender is Button btn)
         {
-            // Вставляем эмодзи в текущую позицию курсора
             var currentText = MessageEntry.Text ?? string.Empty;
             var cursorPos = MessageEntry.CursorPosition;
 
@@ -110,6 +111,43 @@ public partial class ChatPage : ContentPage
         _isEmojiPanelVisible = !_isEmojiPanelVisible;
         EmojiPanel.IsVisible = _isEmojiPanelVisible;
         EmojiToggleButton.Text = _isEmojiPanelVisible ? "⌨️" : "😀";
+    }
+
+    private async void OnMessageLongPress(object sender, EventArgs e)
+    {
+        if (sender is Element element && element.BindingContext is FirebaseMessageViewModel messageVM)
+        {
+            string action = await DisplayActionSheet(
+                "Действия с сообщением",
+                "Отмена",
+                null,
+                "Ответить"
+            );
+
+            if (action == "Ответить")
+            {
+                ShowReplyPreview(messageVM);
+            }
+        }
+    }
+
+    private void ShowReplyPreview(FirebaseMessageViewModel message)
+    {
+        _replyToMessage = message;
+
+        ReplyToSenderLabel.Text = $"↩️ Ответ для {message.Sender}";
+        ReplyToTextLabel.Text = message.Text.Length > 100
+            ? message.Text.Substring(0, 100) + "..."
+            : message.Text;
+
+        ReplyPreviewPanel.IsVisible = true;
+        MessageEntry.Focus();
+    }
+
+    private void OnCancelReplyClicked(object sender, EventArgs e)
+    {
+        _replyToMessage = null;
+        ReplyPreviewPanel.IsVisible = false;
     }
 
     private async void OnImageClicked(object? sender, EventArgs e)
@@ -200,14 +238,12 @@ public partial class ChatPage : ContentPage
         base.OnAppearing();
         Debug.WriteLine("[ChatPage] OnAppearing");
 
-        // ✅ Отмечаем что чат открыт — уведомления не нужны
         App.IsChatPageActive = true;
 
-        // Проверяем, установлено ли имя пользователя
         _currentUserName = Preferences.Get("SelectedEmployee", string.Empty);
-        
+
         bool isUserSelected = !string.IsNullOrEmpty(_currentUserName);
-        
+
         if (!isUserSelected)
         {
             Debug.WriteLine("[ChatPage] Пользователь не выбран - отключаем ввод");
@@ -235,9 +271,8 @@ public partial class ChatPage : ContentPage
 
             await LoadMessagesAsync();
 
-            // ✅ Помечаем все сообщения как прочитанные при открытии чата
             await BackgroundMessageService.Instance.MarkAllAsReadAsync();
-            
+
             _ = PollMessagesAsync(_cancellationTokenSource.Token);
         }
         catch (Exception ex)
@@ -253,9 +288,8 @@ public partial class ChatPage : ContentPage
         base.OnDisappearing();
         Debug.WriteLine("[ChatPage] OnDisappearing");
 
-        // ✅ Чат закрыт — уведомления снова нужны
         App.IsChatPageActive = false;
-        
+
         try
         {
             if (_cancellationTokenSource != null && !_cancellationTokenSource.Token.IsCancellationRequested)
@@ -281,7 +315,7 @@ public partial class ChatPage : ContentPage
 
         foreach (var msg in messages)
         {
-            var viewModel = new FirebaseMessageViewModel(msg);
+            var viewModel = new FirebaseMessageViewModel(msg, _currentUserName);
             _messages.Add(viewModel);
             _lastMessageTime = msg.Timestamp;
         }
@@ -297,17 +331,44 @@ public partial class ChatPage : ContentPage
         }
     }
 
-
+    /// <summary>
+    /// ✅ ОБНОВЛЁННЫЙ метод: разделяем закреплённые сообщения на две категории
+    /// </summary>
     private void UpdatePinnedMessages()
     {
         MainThread.BeginInvokeOnMainThread(() =>
         {
             _pinnedMessages.Clear();
-            foreach (var msg in _messages.Where(m => m.IsMessagePinned))
+            _pinnedScheduleFiles.Clear();
+
+            // Берём все сообщения, у которых либо пользовательское закрепление, либо админское расписание
+            var all = _messages.ToList();
+
+            foreach (var msg in all)
             {
-                _pinnedMessages.Add(msg);
+                // Сначала проверяем специальный админский флаг -> отдельная панель админа
+                if (msg.IsFile && msg.IsAdminSchedulePinned)
+                {
+                    _pinnedScheduleFiles.Add(msg);
+                    continue;
+                }
+
+                // Обычные закрепления пользователей
+                if (msg.IsMessagePinned)
+                {
+                    _pinnedMessages.Add(msg);
+                }
             }
+
+            // Показываем панели только если есть соответствующие сообщения
             PinnedMessagesFrame.IsVisible = _pinnedMessages.Count > 0;
+
+            if (this.FindByName("PinnedScheduleFilesPanel") is VisualElement schedulePanel)
+            {
+                schedulePanel.IsVisible = _pinnedScheduleFiles.Count > 0;
+            }
+
+            Debug.WriteLine($"[ChatPage] Обычных закреплённых: {_pinnedMessages.Count}, Файлов расписания: {_pinnedScheduleFiles.Count}");
         });
     }
 
@@ -315,7 +376,6 @@ public partial class ChatPage : ContentPage
     {
         Debug.WriteLine("[ChatPage] OnSendClicked ВЫЗВАН!");
 
-        // Проверяем, выбран ли пользователь
         if (string.IsNullOrEmpty(_currentUserName))
         {
             await DisplayAlert("Ошибка", "Пожалуйста, сначала выберите сотрудника на главной странице", "OK");
@@ -335,13 +395,30 @@ public partial class ChatPage : ContentPage
 
         MessageEntry.Text = string.Empty;
 
-        // Скрываем панель эмодзи при отправке
         _isEmojiPanelVisible = false;
         EmojiPanel.IsVisible = false;
         EmojiToggleButton.Text = "😀";
 
         Debug.WriteLine("[ChatPage] Отправка...");
-        var success = await _firebaseService.SendMessageAsync(_currentUserName, messageText);
+
+        bool success;
+
+        if (_replyToMessage != null)
+        {
+            success = await _firebaseService.SendReplyMessageAsync(
+                _currentUserName,
+                messageText,
+                _replyToMessage.Id,
+                _replyToMessage.Text,
+                _replyToMessage.Sender);
+
+            OnCancelReplyClicked(sender, e);
+        }
+        else
+        {
+            success = await _firebaseService.SendMessageAsync(_currentUserName, messageText);
+        }
+
         Debug.WriteLine($"[ChatPage] Результат: {success}");
 
         if (!success)
@@ -358,7 +435,6 @@ public partial class ChatPage : ContentPage
     {
         Debug.WriteLine("[ChatPage] OnShareFileClicked");
 
-        // Проверяем, выбран ли пользователь
         if (string.IsNullOrEmpty(_currentUserName))
         {
             await DisplayAlert("Ошибка", "Пожалуйста, сначала выберите сотрудника на главной странице", "OK");
@@ -395,7 +471,6 @@ public partial class ChatPage : ContentPage
         {
             var fileInfo = new FileInfo(filePath);
 
-            // Проверяем размер (максимум 5 MB)
             if (fileInfo.Length > 5 * 1024 * 1024)
             {
                 await DisplayAlert("Ошибка", $"Файл слишком большой: {fileInfo.Length / (1024 * 1024)} MB\n(максимум 5 MB)", "OK");
@@ -404,7 +479,7 @@ public partial class ChatPage : ContentPage
 
             await DisplayAlert("Загрузка", $"Отправка файла {fileInfo.Name}...", "OK");
 
-            var success = await _firebaseService.SendFileMessageAsync(_currentUserName, filePath);
+            var success = await _firebaseService.SendFileMessageAsync(_currentUserName, filePath, autoPinForAdmin: true);
 
             if (success)
             {
@@ -434,7 +509,6 @@ public partial class ChatPage : ContentPage
 
             Debug.WriteLine($"[ChatPage] Сообщение {messageVM.Id} теперь {(messageVM.IsMessagePinned ? "закреплено" : "откреплено")}");
 
-            // Обновляем только поле isPinned через PATCH
             var success = await _firebaseService.UpdateMessagePinnedStatusAsync(messageVM.Message);
             if (!success)
             {
@@ -447,39 +521,31 @@ public partial class ChatPage : ContentPage
         }
     }
 
+    /// <summary>
+    /// ✅ Скролл к закреплённому сообщению при клике на превью
+    /// </summary>
     private async void OnPinnedMessageClicked(object sender, EventArgs e)
     {
         Debug.WriteLine("[ChatPage] OnPinnedMessageClicked");
 
-        if (sender is Button button && button.CommandParameter is FirebaseMessageViewModel messageVM)
-        {
-            var index = _messages.IndexOf(messageVM);
-            if (index >= 0)
-            {
-                Debug.WriteLine($"[ChatPage] Скролл к закреплённому сообщению на индекс {index}");
+        if (sender is not View view || view.BindingContext is not FirebaseMessageViewModel messageVM)
+            return;
 
-                await MainThread.InvokeOnMainThreadAsync(async () =>
-                {
-                    MessagesCollectionView.ScrollTo(index, position: ScrollToPosition.MakeVisible, animate: true);
-                    
-                    HighlightMessage(messageVM);
-                    
-                    await Task.Delay(2000);
-                    RemoveHighlightMessage(messageVM);
-                });
-            }
+        var index = _messages.IndexOf(messageVM);
+        if (index >= 0)
+        {
+            Debug.WriteLine($"[ChatPage] Скролл к закреплённому сообщению на индекс {index}");
+
+            await MainThread.InvokeOnMainThreadAsync(async () =>
+            {
+                MessagesCollectionView.ScrollTo(index, position: ScrollToPosition.MakeVisible, animate: true);
+
+                await Task.Delay(200);
+            });
         }
     }
 
-    private void HighlightMessage(FirebaseMessageViewModel messageVM)
-    {
-        messageVM.IsHighlighted = true;
-    }
 
-    private void RemoveHighlightMessage(FirebaseMessageViewModel messageVM)
-    {
-        messageVM.IsHighlighted = false;
-    }
 
     private async void OnDownloadFileClicked(object sender, EventArgs e)
     {
@@ -491,7 +557,6 @@ public partial class ChatPage : ContentPage
             {
                 Debug.WriteLine($"[ChatPage] Скачивание файла: {messageVM.FileName}");
 
-                // Извлекаем файл из Firebase
                 var filePath = await _firebaseService.ExtractFileAsync(messageVM.Message);
 
                 if (string.IsNullOrEmpty(filePath))
@@ -502,7 +567,6 @@ public partial class ChatPage : ContentPage
 
                 Debug.WriteLine($"[ChatPage] Файл скачан: {filePath}");
 
-                // Показываем диалог загрузки
                 bool shouldLoad = await DisplayAlert(
                     "Файл загружен",
                     $"📎 {Path.GetFileName(filePath)}\n\nЗагрузить расписание и заменить старые данные?",
@@ -518,7 +582,6 @@ public partial class ChatPage : ContentPage
 
                 Debug.WriteLine("[ChatPage] Загрузка расписания из файла");
 
-                // Способ 1: Ищем MainPage в стеке навигации (если есть NavigationPage)
                 MainPage? mainPageInstance = null;
 
                 if (App.Current?.MainPage is NavigationPage navigationPage)
@@ -531,31 +594,27 @@ public partial class ChatPage : ContentPage
                     Debug.WriteLine($"[ChatPage] MainPage в стеке: {(mainPageInstance != null ? "найдена" : "не найдена")}");
                 }
 
-                // Способ 2: Если MainPage — прямой корень приложения
                 if (mainPageInstance == null && App.Current?.MainPage is MainPage directMainPage)
                 {
                     Debug.WriteLine("[ChatPage] MainPage найдена как корневая страница");
                     mainPageInstance = directMainPage;
                 }
 
-                // Если MainPage найдена, загружаем расписание
                 if (mainPageInstance != null)
                 {
                     Debug.WriteLine("[ChatPage] Найдена MainPage, загружаем и очищаем старые данные");
 
                     try
                     {
-                        // Сначала удаляем старые данные
                         Debug.WriteLine("[ChatPage] Удаление старых данных...");
                         await mainPageInstance.ClearAllDataAsync();
-                        
-                        // Затем загружаем новое расписание
+
                         Debug.WriteLine("[ChatPage] Загрузка новых данных...");
                         await mainPageInstance.ProcessExcelFileAsync(filePath);
 
                         await DisplayAlert(
-                            "Успех", 
-                            "Расписание успешно обновлено!\n\nСтарые данные удалены и новые загружены.", 
+                            "Успех",
+                            "Расписание успешно обновлено!\n\nСтарые данные удалены и новые загружены.",
                             "OK"
                         );
                     }
@@ -569,18 +628,15 @@ public partial class ChatPage : ContentPage
                 {
                     Debug.WriteLine("[ChatPage] MainPage не найдена");
 
-                    // Сохраняем путь к файлу в Preferences для дальнейшей обработки
                     Preferences.Set("PendingScheduleFile", filePath);
                     Debug.WriteLine("[ChatPage] Файл сохранен в Preferences для дальнейшей загрузки");
 
-                    // Показываем сообщение об успехе
                     await DisplayAlert(
                         "Файл готов",
                         $"Файл расписания готов к загрузке.\n\nВозвращаюсь на главное меню...",
                         "OK"
                     );
-                    
-                    // Возвращаемся на главную страницу
+
                     Debug.WriteLine("[ChatPage] Возврат на главное меню");
                     await Navigation.PopToRootAsync();
                 }
@@ -611,12 +667,11 @@ public partial class ChatPage : ContentPage
 
                     foreach (var msg in newMessages)
                     {
-                        var viewModel = new FirebaseMessageViewModel(msg);
+                        var viewModel = new FirebaseMessageViewModel(msg, _currentUserName);
                         _messages.Add(viewModel);
                         _lastMessageTime = msg.Timestamp;
                     }
 
-                    // ✅ Помечаем новые сообщения как прочитанные (чат открыт)
                     await _firebaseService.MarkMessagesAsReadAsync(newMessages);
 
                     UpdatePinnedMessages();
@@ -646,13 +701,15 @@ public class FirebaseMessageViewModel : INotifyPropertyChanged
 {
     private bool _isHighlighted;
     private bool _isMessagePinned;
+    private readonly string _currentUserName;
 
     public FirebaseMessage Message { get; }
 
-    public FirebaseMessageViewModel(FirebaseMessage message)
+    public FirebaseMessageViewModel(FirebaseMessage message, string currentUserName)
     {
         Message = message;
         _isMessagePinned = message.IsPinned;
+        _currentUserName = currentUserName;
     }
 
     public string Sender => Message.Sender;
@@ -663,14 +720,81 @@ public class FirebaseMessageViewModel : INotifyPropertyChanged
     public string? FileName => Message.FileName;
     public string Type => Message.Type;
 
+    public string? ReplyToId => Message.ReplyToId;
+    public string? ReplyToText => Message.ReplyToText;
+    public string? ReplyToSender => Message.ReplyToSender;
+    public bool HasReply => !string.IsNullOrEmpty(ReplyToId);
+
     public bool IsFile => Message.Type == "file";
     public bool IsImage => Message.Type == "image";
     public bool IsText => Message.Type == "text";
 
-    /// <summary>
-    /// Base64-данные изображения для привязки к конвертеру
-    /// </summary>
     public string? ImageData => IsImage ? Message.FileData : null;
+
+    /// <summary>
+    /// Моё сообщение? (Sender совпадает с текущим пользователем)
+    /// </summary>
+    public bool IsMine => string.Equals(Sender, _currentUserName, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Не моё сообщение (для отображения аватарки и имени)
+    /// </summary>
+    public bool IsNotMine => !IsMine;
+
+    /// <summary>
+    /// Проверка, является ли отправитель администратором
+    /// </summary>
+    public bool IsFromAdmin => Sender.Contains("Администратор", StringComparison.OrdinalIgnoreCase) ||
+                               Sender.Contains("Admin", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Файл от обычного пользователя (НЕ закреплённый файл расписания от админа)
+    /// </summary>
+    public bool IsFileButNotAdminSchedule => IsFile && !IsAdminSchedulePinned;
+
+    /// <summary>
+    /// Превью текста для закреплённого сообщения (первая строка, макс 60 символов)
+    /// </summary>
+    public string PinnedPreviewText
+    {
+        get
+        {
+            var text = Text ?? FileName ?? "Сообщение";
+            var firstLine = text.Split('\n')[0];
+            return firstLine.Length > 60 ? firstLine.Substring(0, 60) + "..." : firstLine;
+        }
+    }
+
+    public string Initials
+    {
+        get
+        {
+            var parts = Sender.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            if (parts.Length >= 2)
+                return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+            else if (parts.Length == 1)
+                return parts[0][0].ToString().ToUpper();
+
+            return "??";
+        }
+    }
+
+    // Новый флаг: сообщение помечено как админское расписание (из FirebaseMessage.IsAdminSchedulePinned)
+    public bool IsAdminSchedulePinned
+    {
+        get => Message.IsAdminSchedulePinned;
+        set
+        {
+            if (Message.IsAdminSchedulePinned != value)
+            {
+                Message.IsAdminSchedulePinned = value;
+                OnPropertyChanged(nameof(IsAdminSchedulePinned));
+                // Влияет на отображение файлов в основном списке
+                OnPropertyChanged(nameof(IsFileButNotAdminSchedule));
+            }
+        }
+    }
 
     public bool IsMessagePinned
     {
@@ -680,24 +804,20 @@ public class FirebaseMessageViewModel : INotifyPropertyChanged
             if (_isMessagePinned != value)
             {
                 _isMessagePinned = value;
+                Message.IsPinned = value; // синхронизируем с моделью
                 OnPropertyChanged(nameof(IsMessagePinned));
                 OnPropertyChanged(nameof(PinButtonText));
+                OnPropertyChanged(nameof(IsFileButNotAdminSchedule));
             }
         }
     }
 
-    public bool IsHighlighted
+    private void OnPropertyChanged(string propertyName)
     {
-        get => _isHighlighted;
-        set
-        {
-            if (_isHighlighted != value)
-            {
-                _isHighlighted = value;
-                OnPropertyChanged(nameof(IsHighlighted));
-            }
-        }
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     public string PinButtonText => IsMessagePinned ? "Откреп." : "Закреп.";
 
@@ -714,12 +834,5 @@ public class FirebaseMessageViewModel : INotifyPropertyChanged
 
             return $"{Message.FileSize / (1024.0 * 1024):F1} MB";
         }
-    }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected void OnPropertyChanged(string propertyName)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

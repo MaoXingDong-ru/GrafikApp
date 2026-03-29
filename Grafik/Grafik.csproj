@@ -48,45 +48,45 @@
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net9.0-android|AnyCPU'">
-	  <AndroidPackageFormat>apk</AndroidPackageFormat>
-	  <AndroidKeyStore>False</AndroidKeyStore>
-	  <ApplicationDisplayVersion>1.6.0</ApplicationDisplayVersion>
+		<AndroidPackageFormat>apk</AndroidPackageFormat>
+		<AndroidKeyStore>False</AndroidKeyStore>
+		<ApplicationDisplayVersion>1.7.0</ApplicationDisplayVersion>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net9.0-android|ARM64'">
-	  <AndroidPackageFormat>apk</AndroidPackageFormat>
-	  <AndroidKeyStore>False</AndroidKeyStore>
-	  <ApplicationDisplayVersion>1.6.0</ApplicationDisplayVersion>
+		<AndroidPackageFormat>apk</AndroidPackageFormat>
+		<AndroidKeyStore>False</AndroidKeyStore>
+		<ApplicationDisplayVersion>1.7.0</ApplicationDisplayVersion>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0-android|AnyCPU'">
-	  <AndroidKeyStore>False</AndroidKeyStore>
-	  <ApplicationDisplayVersion>1.6.0</ApplicationDisplayVersion>
+		<AndroidKeyStore>False</AndroidKeyStore>
+		<ApplicationDisplayVersion>1.7.0</ApplicationDisplayVersion>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0-android|ARM64'">
-	  <AndroidKeyStore>False</AndroidKeyStore>
-	  <ApplicationDisplayVersion>1.6.0</ApplicationDisplayVersion>
+		<AndroidKeyStore>False</AndroidKeyStore>
+		<ApplicationDisplayVersion>1.7.0</ApplicationDisplayVersion>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(RunConfiguration)'=='Default'">
-	  <LaunchForBackgroundFetch>false</LaunchForBackgroundFetch>
+		<LaunchForBackgroundFetch>false</LaunchForBackgroundFetch>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0-windows10.0.19041.0|AnyCPU'">
-	  <ApplicationDisplayVersion>1.6.0</ApplicationDisplayVersion>
+		<ApplicationDisplayVersion>1.7.0</ApplicationDisplayVersion>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0-windows10.0.19041.0|ARM64'">
-	  <ApplicationDisplayVersion>1.6.0</ApplicationDisplayVersion>
+		<ApplicationDisplayVersion>1.7.0</ApplicationDisplayVersion>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net9.0-windows10.0.19041.0|AnyCPU'">
-	  <ApplicationDisplayVersion>1.6.0</ApplicationDisplayVersion>
+		<ApplicationDisplayVersion>1.7.0</ApplicationDisplayVersion>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net9.0-windows10.0.19041.0|ARM64'">
-	  <ApplicationDisplayVersion>1.6.0</ApplicationDisplayVersion>
+		<ApplicationDisplayVersion>1.7.0</ApplicationDisplayVersion>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -107,7 +107,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <MauiIcon Include="Resources\AppIcon\appicon.jpg" />
+		<MauiIcon Include="Resources\AppIcon\appicon.jpg" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -119,28 +119,36 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Compile Update="EmployeeSchedulePage.xaml.cs">
-	    <DependentUpon>EmployeeSchedulePage.xaml</DependentUpon>
-	  </Compile>
-	  <Compile Update="BugReportPage.xaml.cs">
-	    <DependentUpon>BugReportPage.xaml</DependentUpon>
-	  </Compile>
+		<Compile Update="EmployeeSchedulePage.xaml.cs">
+			<DependentUpon>EmployeeSchedulePage.xaml</DependentUpon>
+		</Compile>
+		<Compile Update="BugReportPage.xaml.cs">
+			<DependentUpon>BugReportPage.xaml</DependentUpon>
+		</Compile>
 	</ItemGroup>
 
 	<ItemGroup>
-	  <MauiXaml Update="ChatPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="EmployeeSchedulePage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="BugReportPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
+		<MauiXaml Update="ChatPage.xaml">
+			<Generator>MSBuild:Compile</Generator>
+		</MauiXaml>
+		<MauiXaml Update="EmployeeSchedulePage.xaml">
+			<Generator>MSBuild:Compile</Generator>
+		</MauiXaml>
+		<MauiXaml Update="BugReportPage.xaml">
+			<Generator>MSBuild:Compile</Generator>
+		</MauiXaml>
+		<MauiXaml Update="ShiftSwapPage.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</MauiXaml>
 	</ItemGroup>
 
 	<ItemGroup>
-	  <PackageReference Update="Microsoft.Maui.Controls.Compatibility" Version="9.0.100" />
+		<PackageReference Update="Microsoft.Maui.Controls.Compatibility" Version="9.0.100" />
+	</ItemGroup>
+
+	<!-- ИСПРАВЛЕНО: путь к GrafikShared -->
+	<ItemGroup>
+		<ProjectReference Include="..\GrafikShared\GrafikShared.csproj" />
 	</ItemGroup>
 
 </Project>

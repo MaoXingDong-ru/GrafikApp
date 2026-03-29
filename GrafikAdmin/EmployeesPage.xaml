@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="GrafikAdmin.EmployeesPage"
+             Title="Список сотрудников"
+             BackgroundColor="#1E1E1E">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        
+        <!-- Заголовок -->
+        <Frame Grid.Row="0" Padding="15" BackgroundColor="#3D3D3D" CornerRadius="0" HasShadow="False">
+            <StackLayout>
+                <Label Text="👥 Управление сотрудниками" 
+                       FontSize="20" 
+                       FontAttributes="Bold"
+                       TextColor="White"
+                       HorizontalOptions="Center"/>
+                <Label x:Name="CountLabel"
+                       Text="Всего: 0"
+                       FontSize="14"
+                       TextColor="#B0B0B0"
+                       HorizontalOptions="Center"/>
+            </StackLayout>
+        </Frame>
+
+        <!-- Список сотрудников -->
+        <ScrollView Grid.Row="1" Padding="10">
+            <StackLayout Spacing="15">
+                
+                <!-- Первая линия -->
+                <Frame Padding="12" 
+                       BackgroundColor="#2D2D2D" 
+                       BorderColor="#2196F3"
+                       CornerRadius="12"
+                       HasShadow="False">
+                    <StackLayout Spacing="10">
+                        <Label Text="🔵 Первая линия" 
+                               FontSize="18" 
+                               FontAttributes="Bold"
+                               TextColor="#2196F3"/>
+                        
+                        <CollectionView x:Name="FirstLineList"
+                                        SelectionMode="None">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <SwipeView>
+                                        <SwipeView.RightItems>
+                                            <SwipeItems>
+                                                <SwipeItem Text="→ 2 линия"
+                                                           BackgroundColor="#4CAF50"
+                                                           Invoked="OnMoveToSecondLine"/>
+                                                <SwipeItem Text="🗑️"
+                                                           BackgroundColor="#F44336"
+                                                           Invoked="OnDeleteEmployee"/>
+                                            </SwipeItems>
+                                        </SwipeView.RightItems>
+                                        
+                                        <Frame Padding="12" 
+                                               Margin="0,3" 
+                                               BackgroundColor="#1E1E1E" 
+                                               BorderColor="#3D3D3D"
+                                               CornerRadius="8"
+                                               HasShadow="False">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <Label Text="{Binding .}" 
+                                                       FontSize="16"
+                                                       TextColor="White"
+                                                       VerticalOptions="Center"/>
+                                                <Label Grid.Column="1" 
+                                                       Text="← свайп"
+                                                       FontSize="11"
+                                                       TextColor="#606060"
+                                                       VerticalOptions="Center"/>
+                                            </Grid>
+                                        </Frame>
+                                    </SwipeView>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                            <CollectionView.EmptyView>
+                                <Label Text="Нет сотрудников первой линии"
+                                       TextColor="#606060"
+                                       HorizontalOptions="Center"
+                                       Margin="0,15"/>
+                            </CollectionView.EmptyView>
+                        </CollectionView>
+                    </StackLayout>
+                </Frame>
+
+                <!-- Вторая линия -->
+                <Frame Padding="12" 
+                       BackgroundColor="#2D2D2D" 
+                       BorderColor="#4CAF50"
+                       CornerRadius="12"
+                       HasShadow="False">
+                    <StackLayout Spacing="10">
+                        <Label Text="🟢 Вторая линия" 
+                               FontSize="18" 
+                               FontAttributes="Bold"
+                               TextColor="#4CAF50"/>
+                        
+                        <CollectionView x:Name="SecondLineList"
+                                        SelectionMode="None">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <SwipeView>
+                                        <SwipeView.RightItems>
+                                            <SwipeItems>
+                                                <SwipeItem Text="→ 1 линия"
+                                                           BackgroundColor="#2196F3"
+                                                           Invoked="OnMoveToFirstLine"/>
+                                                <SwipeItem Text="🗑️"
+                                                           BackgroundColor="#F44336"
+                                                           Invoked="OnDeleteEmployee"/>
+                                            </SwipeItems>
+                                        </SwipeView.RightItems>
+                                        
+                                        <Frame Padding="12" 
+                                               Margin="0,3" 
+                                               BackgroundColor="#1E1E1E" 
+                                               BorderColor="#3D3D3D"
+                                               CornerRadius="8"
+                                               HasShadow="False">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <Label Text="{Binding .}" 
+                                                       FontSize="16"
+                                                       TextColor="White"
+                                                       VerticalOptions="Center"/>
+                                                <Label Grid.Column="1" 
+                                                       Text="← свайп"
+                                                       FontSize="11"
+                                                       TextColor="#606060"
+                                                       VerticalOptions="Center"/>
+                                            </Grid>
+                                        </Frame>
+                                    </SwipeView>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                            <CollectionView.EmptyView>
+                                <Label Text="Нет сотрудников второй линии"
+                                       TextColor="#606060"
+                                       HorizontalOptions="Center"
+                                       Margin="0,15"/>
+                            </CollectionView.EmptyView>
+                        </CollectionView>
+                    </StackLayout>
+                </Frame>
+
+            </StackLayout>
+        </ScrollView>
+
+        <!-- Кнопка добавления -->
+        <Button Grid.Row="2"
+                Text="➕ Добавить сотрудника"
+                BackgroundColor="#4CAF50"
+                TextColor="White"
+                FontSize="16"
+                Margin="10"
+                HeightRequest="50"
+                CornerRadius="10"
+                Clicked="OnAddEmployeeClicked"/>
+        
+    </Grid>
+
+</ContentPage>

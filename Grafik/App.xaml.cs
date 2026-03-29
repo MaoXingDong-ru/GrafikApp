@@ -6,21 +6,46 @@ namespace Grafik;
 public partial class App : Application
 {
     private static bool _backgroundServiceStarted = false;
-    public static bool IsAppInForeground { get; private set; } = false;
+    private static bool _monitorInitialized = false;
 
-    /// <summary>
-    /// Флаг: открыт ли сейчас экран чата (уведомления не нужны, пользователь видит сообщения)
-    /// </summary>
+    public static bool IsAppInForeground { get; private set; } = false;
     public static bool IsChatPageActive { get; set; } = false;
 
     public App()
     {
         InitializeComponent();
-
+        
+        // Принудительно устанавливаем тёмную тему
+        UserAppTheme = AppTheme.Dark;
+        
         MainPage = new AppShell();
 
-        // Запускаем фоновый сервис при старте приложения
+#if !ANDROID
         StartBackgroundService();
+#endif
+    }
+
+    /// <summary>
+    /// Инициализация мониторинга Firebase (один раз)
+    /// </summary>
+    public static void InitializeFirebaseMonitor()
+    {
+        if (_monitorInitialized)
+            return;
+
+        Debug.WriteLine("[App] Инициализация мониторинга Firebase...");
+
+        var url = Preferences.Get("FirebaseUrl", string.Empty);
+        if (string.IsNullOrEmpty(url))
+        {
+            var defaultUrl = "https://grafikchat-92791-default-rtdb.europe-west1.firebasedatabase.app";
+            Preferences.Set("FirebaseUrl", defaultUrl);
+            Debug.WriteLine($"[App] Установлен дефолтный URL");
+        }
+
+        FirebaseConnectionMonitor.Instance.Start();
+        _monitorInitialized = true;
+        Debug.WriteLine("[App] Мониторинг Firebase запущен ✓");
     }
 
     private void StartBackgroundService()
@@ -35,14 +60,10 @@ public partial class App : Application
             var firebaseUrl = Preferences.Get("FirebaseUrl",
                 "https://grafikchat-92791-default-rtdb.europe-west1.firebasedatabase.app/");
 
-            // Запускаем сервис
             BackgroundMessageService.Instance.Start(firebaseUrl);
-            
-            // Подписываемся на события
             BackgroundMessageService.Instance.NewMessageReceived += OnNewMessageReceived;
 
             _backgroundServiceStarted = true;
-
             Debug.WriteLine("[App] Фоновый сервис успешно запущен");
         }
         catch (Exception ex)
@@ -51,56 +72,97 @@ public partial class App : Application
         }
     }
 
+    private void StartForegroundPollingService()
+    {
+#if ANDROID
+        try
+        {
+            Debug.WriteLine("[App] Запуск Foreground Service для полинга сообщений");
+
+            var intent = new Android.Content.Intent(
+                Android.App.Application.Context,
+                typeof(MessagePollingService));
+
+            if (Android.OS.Build.VERSION.SdkInt >= Android.OS.BuildVersionCodes.O)
+            {
+                Android.App.Application.Context.StartForegroundService(intent);
+            }
+            else
+            {
+                Android.App.Application.Context.StartService(intent);
+            }
+
+            Debug.WriteLine("[App] Foreground Service запущен");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[App] ❌ Ошибка запуска Foreground Service: {ex.Message}");
+        }
+#endif
+    }
+
     protected override Window CreateWindow(IActivationState? activationState)
     {
         var window = base.CreateWindow(activationState);
 
-        window.Resumed += (s, e) =>
+        window.Created += async (s, e) =>
         {
-            Debug.WriteLine("[App] Window.Resumed - приложение активировалось");
+            Debug.WriteLine("[App] Window.Created");
+
+            // Инициализируем мониторинг соединения
+            InitializeFirebaseMonitor();
+
+#if ANDROID
+            StartForegroundPollingService();
+#endif
+        };
+
+        window.Resumed += async (s, e) =>
+        {
+            Debug.WriteLine("[App] Window.Resumed");
             IsAppInForeground = true;
-            
-            // ✅ Возобновляем частый полинг
+
+            FirebaseConnectionMonitor.Instance.Resume();
+#if !ANDROID
             BackgroundMessageService.Instance.Resume();
+#endif
         };
 
         window.Stopped += (s, e) =>
         {
-            Debug.WriteLine("[App] Window.Stopped - приложение свернулось");
+            Debug.WriteLine("[App] Window.Stopped");
             IsAppInForeground = false;
-            
-            // ⏸️ Переключаемся на редкий полинг (но НЕ останавливаем!)
-            BackgroundMessageService.Instance.Pause();
+
+            FirebaseConnectionMonitor.Instance.Pause();
         };
 
         window.Destroying += (s, e) =>
         {
-            Debug.WriteLine("[App] Window.Destroying - приложение закрывается");
-            
+            Debug.WriteLine("[App] Window.Destroying");
+
+#if !ANDROID
             try
             {
                 BackgroundMessageService.Instance.NewMessageReceived -= OnNewMessageReceived;
                 BackgroundMessageService.Instance.Stop();
                 _backgroundServiceStarted = false;
-                Debug.WriteLine("[App] Фоновый сервис остановлен");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[App] Ошибка при остановке: {ex.Message}");
             }
+#else
+            Debug.WriteLine("[App] Foreground Service продолжает работать в фоне");
+#endif
         };
 
         return window;
     }
 
-    /// <summary>
-    /// Обработчик события получения нового сообщения
-    /// </summary>
     private void OnNewMessageReceived(object? sender, BackgroundMessageService.NewMessageEventArgs e)
     {
         Debug.WriteLine($"[App] Новое сообщение от {e.SenderName}: {e.Message.Text}");
 
-        // Не показываем уведомление, если чат открыт и приложение на переднем плане
         if (IsAppInForeground && IsChatPageActive)
         {
             Debug.WriteLine("[App] Чат открыт — уведомление не показываем");
@@ -109,7 +171,6 @@ public partial class App : Application
 
         try
         {
-            // Формируем превью сообщения
             string messagePreview = e.Message.Type switch
             {
                 "file" => $"📎 {e.Message.FileName}",
@@ -119,13 +180,10 @@ public partial class App : Application
                     : e.Message.Text
             };
 
-            // 🔔 СИСТЕМНОЕ уведомление
             NotificationService.ShowInstantNotification(
                 $"💬 {e.SenderName}",
                 messagePreview,
                 NotificationService.CHAT_CHANNEL_ID);
-
-            Debug.WriteLine($"[App] 🔔 Уведомление показано: {e.SenderName} — {messagePreview}");
         }
         catch (Exception ex)
         {

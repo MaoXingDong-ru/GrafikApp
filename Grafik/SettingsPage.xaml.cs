@@ -12,6 +12,16 @@ public partial class SettingsPage : ContentPage
     /// </summary>
     private const string DefaultFirebaseUrl = "https://grafikchat-92791-default-rtdb.europe-west1.firebasedatabase.app/";
 
+    /// <summary>
+    /// Маппинг индексов Picker на ReminderOption
+    /// </summary>
+    private static readonly ReminderOption[] ReminderOptions =
+    [
+        ReminderOption.FifteenMinutesBefore,  // 0 - "За 15 минут"
+        ReminderOption.OneHourBefore,          // 1 - "За 1 час"
+        ReminderOption.OneDayBefore            // 2 - "За 1 день"
+    ];
+ 
     public SettingsPage()
     {
         InitializeComponent();
@@ -36,7 +46,8 @@ public partial class SettingsPage : ContentPage
 
             if (settings != null)
             {
-                ReminderPicker.SelectedIndex = (int)settings.Reminder;
+                // Находим индекс по значению ReminderOption
+                ReminderPicker.SelectedIndex = GetPickerIndexFromReminder(settings.Reminder);
                 FirebaseUrlEntry.Text = settings.FirebaseUrl ?? DefaultFirebaseUrl;
 
                 // Обновляем UI статуса
@@ -45,9 +56,33 @@ public partial class SettingsPage : ContentPage
         }
         else
         {
-            // Если файла нет, используем дефолт
+            // Если файла нет, используем дефолт (15 минут)
+            ReminderPicker.SelectedIndex = 0;
             FirebaseUrlEntry.Text = DefaultFirebaseUrl;
         }
+    }
+
+    /// <summary>
+    /// Получить индекс Picker из ReminderOption
+    /// </summary>
+    private static int GetPickerIndexFromReminder(ReminderOption reminder)
+    {
+        for (int i = 0; i < ReminderOptions.Length; i++)
+        {
+            if (ReminderOptions[i] == reminder)
+                return i;
+        }
+        return 0; // По умолчанию "За 15 минут"
+    }
+
+    /// <summary>
+    /// Получить ReminderOption из индекса Picker
+    /// </summary>
+    private static ReminderOption GetReminderFromPickerIndex(int index)
+    {
+        if (index >= 0 && index < ReminderOptions.Length)
+            return ReminderOptions[index];
+        return ReminderOption.FifteenMinutesBefore;
     }
 
     private void UpdateFirebaseStatus(AppSettings settings)
@@ -79,7 +114,10 @@ public partial class SettingsPage : ContentPage
         Preferences.Set("FirebaseUrl", urlToSave);
 
         // Сохраняем ReminderOption в Preferences для использования NotificationService
-        Preferences.Set("ReminderOption", settings.Reminder.ToString());
+        // Сохраняем числовое значение enum для надёжного парсинга
+        Preferences.Set("ReminderOption", ((int)settings.Reminder).ToString());
+
+        System.Diagnostics.Debug.WriteLine($"[SettingsPage] Сохранено напоминание: {settings.Reminder} ({(int)settings.Reminder})");
 
         // Перепланируем уведомления с новыми настройками
         RescheduleNotificationsAfterSave(settings.Reminder);
@@ -132,7 +170,8 @@ public partial class SettingsPage : ContentPage
             settings = JsonSerializer.Deserialize<AppSettings>(jsonData) ?? settings;
         }
 
-        settings.Reminder = (ReminderOption)ReminderPicker.SelectedIndex;
+        // Используем корректный маппинг индекса → ReminderOption
+        settings.Reminder = GetReminderFromPickerIndex(ReminderPicker.SelectedIndex);
         settings.FirebaseUrl = FirebaseUrlEntry.Text;
 
         return settings;
@@ -169,6 +208,25 @@ public partial class SettingsPage : ContentPage
     private async void OnBugReportClicked(object sender, EventArgs e)
     {
         await Navigation.PushAsync(new BugReportPage());
+    }
+
+    private async void OnSaveClicked(object sender, EventArgs e)
+    {
+        var url = FirebaseUrlEntry.Text?.Trim();
+
+        if (string.IsNullOrEmpty(url))
+        {
+            await DisplayAlert("Ошибка", "Введите Firebase URL", "OK");
+            return;
+        }
+
+        Preferences.Set("FirebaseUrl", url);
+
+        // Перезапускаем мониторинг с новым URL
+        Services.FirebaseConnectionMonitor.Instance.Restart();
+
+        await DisplayAlert("✅ Успех", "Настройки сохранены", "OK");
+        await Navigation.PopAsync();
     }
 }
 

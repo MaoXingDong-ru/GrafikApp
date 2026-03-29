@@ -326,7 +326,9 @@ public partial class MainPage : ContentPage
     {
         int endRow = startRow + count;
         int lastProcessedRow = startRow;
-        var exclusionWords = new[] { "отпуск", "замещает", "выходной" };
+        
+        // Добавлено "вых" для частичного совпадения с "Вых", "ВЫХ", "вых." и т.д.
+        var exclusionWords = new[] { "отпуск", "замещает", "выходной", "вых" };
 
         for (int row = startRow; row < endRow; row++)
         {

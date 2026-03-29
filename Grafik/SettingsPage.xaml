@@ -1,17 +1,31 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:Grafik.Controls"
              x:Class="Grafik.SettingsPage"
-             Title="Настройки">
+             Title="Настройки"
+             BackgroundColor="#1E1E1E">
 
-    <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="20">
-            
+    <ScrollView Padding="20">
+        <VerticalStackLayout Spacing="20">
+
+            <!-- Заголовок с индикатором -->
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Grid.Column="0"
+                       Text="⚙️ Настройки"
+                       FontSize="24"
+                       FontAttributes="Bold"
+                       TextColor="White"/>
+                
+                <controls:ConnectionIndicator Grid.Column="1"/>
+            </Grid>
+
             <!-- Напоминание о смене -->
             <VerticalStackLayout Spacing="8">
                 <Label Text="Напоминание о смене:" 
                        FontSize="16" 
-                       FontAttributes="Bold"/>
+                       FontAttributes="Bold"
+                       TextColor="White"/>
                 <Picker x:Name="ReminderPicker"
                         SelectedIndex="0"/>
             </VerticalStackLayout>
@@ -20,7 +34,8 @@
             <VerticalStackLayout Spacing="8">
                 <Label Text="Firebase (чат):" 
                        FontSize="16" 
-                       FontAttributes="Bold"/>
+                       FontAttributes="Bold"
+                       TextColor="White"/>
 
                 <Frame BorderColor="#4CAF50" 
                        CornerRadius="8" 
@@ -33,7 +48,8 @@
                 </Frame>
 
                 <Label Text="Database URL (из Firebase Console):" 
-                       FontSize="12"/>
+                       FontSize="12"
+                       TextColor="White"/>
                 <Entry x:Name="FirebaseUrlEntry" 
                        Placeholder="https://your-project.firebaseio.com"/>
 
@@ -64,7 +80,8 @@
             <VerticalStackLayout Spacing="8">
                 <Label Text="Обратная связь:" 
                        FontSize="16" 
-                       FontAttributes="Bold"/>
+                       FontAttributes="Bold"
+                       TextColor="White"/>
 
                 <Label Text="Сообщите о найденных ошибках или предложите новый функционал" 
                        FontSize="12"

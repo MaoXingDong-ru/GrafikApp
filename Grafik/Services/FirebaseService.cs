@@ -23,34 +23,32 @@ namespace Grafik.Services
 
         [JsonPropertyName("id")]
         public string Id { get; set; } = Guid.NewGuid().ToString();
-        
+
         /// <summary>
         /// Если это файл/изображение — содержимое в Base64
         /// </summary>
         [JsonPropertyName("fileData")]
         public string? FileData { get; set; }
-        
+
         /// <summary>
         /// Имя файла (если это сообщение с файлом/изображением)
         /// </summary>
         [JsonPropertyName("fileName")]
         public string? FileName { get; set; }
-        
+
         /// <summary>
         /// Размер файла в байтах
         /// </summary>
         [JsonPropertyName("fileSize")]
         public long FileSize { get; set; }
-        
+
         /// <summary>
         /// Тип: "text", "file" или "image"
         /// </summary>
         [JsonPropertyName("type")]
         public string Type { get; set; } = "text";
 
-        /// <summary>
-        /// Закреплено ли сообщение (для файлов)
-        /// </summary>
+        // Обычное закрепление (пользовательские закрепления)
         [JsonPropertyName("isPinned")]
         public bool IsPinned { get; set; } = false;
 
@@ -60,6 +58,24 @@ namespace Grafik.Services
         /// </summary>
         [JsonPropertyName("readBy")]
         public Dictionary<string, bool>? ReadBy { get; set; }
+
+        // ✅ Новые поля для ответов на сообщения
+        [JsonPropertyName("replyToId")]
+        public string? ReplyToId { get; set; }
+
+        [JsonPropertyName("replyToText")]
+        public string? ReplyToText { get; set; }
+
+        [JsonPropertyName("replyToSender")]
+        public string? ReplyToSender { get; set; }
+
+        // Явный флаг отправителя-админа
+        [JsonPropertyName("isAdmin")]
+        public bool IsAdmin { get; set; } = false;
+
+        // Новый флаг: специальное закрепление расписания, которое показывается в отдельном фрейме админа
+        [JsonPropertyName("isAdminSchedulePinned")]
+        public bool IsAdminSchedulePinned { get; set; } = false;
 
         /// <summary>
         /// Ключ записи в Firebase (например -Oi1-wus00QacrG69a_4).
@@ -73,12 +89,12 @@ namespace Grafik.Services
     {
         private readonly string _databaseUrl;
         private readonly HttpClient _httpClient;
-        
+
         /// <summary>
         /// Количество дней для хранения сообщений
         /// </summary>
         private const int MessageRetentionDays = 30;
-        
+
         /// <summary>
         /// Максимальный размер файла в байтах (5 MB)
         /// </summary>
@@ -105,7 +121,7 @@ namespace Grafik.Services
             Log($"📋 Сообщения хранятся {MessageRetentionDays} дней");
             Log($"📎 Максимальный размер файла: {MaxFileSizeBytes / (1024 * 1024)} MB");
             Log($"🖼️ Максимальный размер изображения: {MaxImageSizeBytes / (1024 * 1024)} MB");
-            
+
             // Асинхронно очищаем старые сообщения при инициализации
             _ = CleanupOldMessagesAsync();
         }
@@ -159,6 +175,9 @@ namespace Grafik.Services
 
                 var deviceId = GetDeviceId();
 
+                bool isAdmin = sender.Contains("Администратор", StringComparison.OrdinalIgnoreCase) ||
+                               sender.Contains("Admin", StringComparison.OrdinalIgnoreCase);
+
                 var message = new FirebaseMessage
                 {
                     Sender = sender,
@@ -166,12 +185,13 @@ namespace Grafik.Services
                     Timestamp = DateTime.UtcNow,
                     Type = "text",
                     // Отправитель сразу считается «прочитавшим» своё сообщение
-                    ReadBy = new Dictionary<string, bool> { { deviceId, true } }
+                    ReadBy = new Dictionary<string, bool> { { deviceId, true } },
+                    IsAdmin = isAdmin
                 };
 
                 var json = JsonSerializer.Serialize(message);
                 Log($"📝 JSON: {json}");
-                
+
                 var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
                 var url = $"{_databaseUrl}/messages.json";
@@ -182,7 +202,7 @@ namespace Grafik.Services
 
                 Log($"📊 Status Code: {(int)response.StatusCode} ({response.StatusCode})");
                 Log($"📊 IsSuccessStatusCode: {response.IsSuccessStatusCode}");
-                
+
                 var responseBody = await response.Content.ReadAsStringAsync();
                 Log($"📨 Response Body Length: {responseBody.Length}");
 
@@ -217,9 +237,54 @@ namespace Grafik.Services
         }
 
         /// <summary>
-        /// Отправить файл в Firebase (как Base64)
+        /// ✅ Отправить ответ на сообщение
         /// </summary>
-        public async Task<bool> SendFileMessageAsync(string sender, string filePath)
+        public async Task<bool> SendReplyMessageAsync(string sender, string messageText, string replyToId, string replyToText, string replyToSender)
+        {
+            try
+            {
+                Log($"📝 Подготовка ответа от {sender} на сообщение {replyToId}");
+
+                var deviceId = GetDeviceId();
+
+                var message = new FirebaseMessage
+                {
+                    Sender = sender,
+                    Text = messageText,
+                    Timestamp = DateTime.UtcNow,
+                    Type = "text",
+                    ReplyToId = replyToId,
+                    ReplyToText = replyToText.Length > 100 ? replyToText.Substring(0, 100) + "..." : replyToText,
+                    ReplyToSender = replyToSender,
+                    ReadBy = new Dictionary<string, bool> { { deviceId, true } }
+                };
+
+                var json = JsonSerializer.Serialize(message);
+                var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+                var url = $"{_databaseUrl}/messages.json";
+                var response = await _httpClient.PostAsync(url, content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Log($"✅ Ответ успешно отправлен");
+                    return true;
+                }
+
+                Log($"❌ Ошибка отправки ответа: {response.StatusCode}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log($"❌ Исключение при отправке ответа: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// ✅ Отправить файл в Firebase (как Base64) с автозакреплением для админа
+        /// </summary>
+        public async Task<bool> SendFileMessageAsync(string sender, string filePath, bool autoPinForAdmin = false)
         {
             try
             {
@@ -231,7 +296,7 @@ namespace Grafik.Services
 
                 var fileName = Path.GetFileName(filePath);
                 var fileInfo = new FileInfo(filePath);
-                
+
                 Log($"📎 Подготовка файла для отправки: {fileName} ({fileInfo.Length} байт)");
 
                 // Проверяем размер файла
@@ -244,10 +309,14 @@ namespace Grafik.Services
                 // Читаем файл и кодируем в Base64
                 var fileBytes = await File.ReadAllBytesAsync(filePath);
                 var base64Data = Convert.ToBase64String(fileBytes);
-                
+
                 Log($"📎 Файл закодирован в Base64 ({base64Data.Length} символов)");
 
                 var deviceId = GetDeviceId();
+
+                // ✅ Проверяем, является ли отправитель администратором
+                bool isAdmin = sender.Contains("Администратор", StringComparison.OrdinalIgnoreCase) ||
+                              sender.Contains("Admin", StringComparison.OrdinalIgnoreCase);
 
                 var message = new FirebaseMessage
                 {
@@ -258,12 +327,16 @@ namespace Grafik.Services
                     FileName = fileName,
                     FileData = base64Data,
                     FileSize = fileInfo.Length,
-                    ReadBy = new Dictionary<string, bool> { { deviceId, true } }
+                    ReadBy = new Dictionary<string, bool> { { deviceId, true } },
+                    IsAdmin = isAdmin,
+                    // ВАЖНО: специальный флаг для расписаний админа
+                    IsAdminSchedulePinned = autoPinForAdmin && isAdmin
+                    // Оставляем обычное IsPinned для ручных закреплений пользователями
                 };
 
                 var json = JsonSerializer.Serialize(message);
                 Log($"📎 Размер сообщения в Firebase: {json.Length} символов");
-                
+
                 var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
                 var url = $"{_databaseUrl}/messages.json";
@@ -276,7 +349,7 @@ namespace Grafik.Services
 
                 if (response.IsSuccessStatusCode)
                 {
-                    Log($"✅ Файл успешно отправлен: {fileName}");
+                    Log($"✅ Файл успешно отправлен: {fileName}{(isAdmin && autoPinForAdmin ? " (автоматически закреплён)" : "")}");
                     return true;
                 }
 
@@ -322,6 +395,9 @@ namespace Grafik.Services
 
                 var deviceId = GetDeviceId();
 
+                bool isAdmin = sender.Contains("Администратор", StringComparison.OrdinalIgnoreCase) ||
+                               sender.Contains("Admin", StringComparison.OrdinalIgnoreCase);
+
                 var message = new FirebaseMessage
                 {
                     Sender = sender,
@@ -331,7 +407,8 @@ namespace Grafik.Services
                     FileName = fileName,
                     FileData = base64Data,
                     FileSize = fileInfo.Length,
-                    ReadBy = new Dictionary<string, bool> { { deviceId, true } }
+                    ReadBy = new Dictionary<string, bool> { { deviceId, true } },
+                    IsAdmin = isAdmin
                 };
 
                 var json = JsonSerializer.Serialize(message);
@@ -369,8 +446,8 @@ namespace Grafik.Services
         {
             try
             {
-                if ((message.Type != "file" && message.Type != "image") 
-                    || string.IsNullOrEmpty(message.FileData) 
+                if ((message.Type != "file" && message.Type != "image")
+                    || string.IsNullOrEmpty(message.FileData)
                     || string.IsNullOrEmpty(message.FileName))
                 {
                     Log($"❌ Сообщение не содержит файл");
@@ -386,7 +463,7 @@ namespace Grafik.Services
                 // Сохраняем файл локально
                 var filePath = Path.Combine(FileSystem.AppDataDirectory, message.FileName);
                 await File.WriteAllBytesAsync(filePath, fileBytes);
-                
+
                 Log($"✅ Файл сохранен: {filePath}");
                 return filePath;
             }
@@ -407,7 +484,7 @@ namespace Grafik.Services
             {
                 var url = $"{_databaseUrl}/messages.json";
                 Log($"📍 GET URL: {url}");
-                
+
                 var response = await _httpClient.GetAsync(url);
                 Log($"📊 GET Status: {(int)response.StatusCode}");
 
@@ -595,10 +672,10 @@ namespace Grafik.Services
             try
             {
                 Log($"🧹 Начинаем очистку сообщений старше {MessageRetentionDays} дней...");
-                
+
                 var cutoffTime = DateTime.UtcNow.AddDays(-MessageRetentionDays);
                 var allMessages = await GetMessagesAsync();
-                
+
                 var oldMessages = allMessages
                     .Where(m => m.Timestamp < cutoffTime && !m.IsPinned)
                     .ToList();
@@ -715,7 +792,7 @@ namespace Grafik.Services
                 if (string.IsNullOrEmpty(firebaseKey))
                 {
                     var firebaseData = await GetRawMessagesDataAsync();
-                    
+
                     foreach (var kvp in firebaseData)
                     {
                         var msg = JsonSerializer.Deserialize<FirebaseMessage>(kvp.Value.GetRawText());

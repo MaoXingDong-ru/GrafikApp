@@ -13,9 +13,10 @@ public class PinnedBackgroundConverter : IValueConverter
     {
         if (value is bool isPinned)
         {
-            return isPinned ? Color.FromArgb("#FFFDE7") : Color.FromArgb("#E8F5E9");
+            // немножко темнее для лучшего контраста
+            return isPinned ? Color.FromArgb("#FFF3D0") : Color.FromArgb("#DDEFE0");
         }
-        return Color.FromArgb("#E8F5E9");
+        return Color.FromArgb("#DDEFE0");
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -33,9 +34,9 @@ public class PinButtonColorConverter : IValueConverter
     {
         if (value is bool isPinned)
         {
-            return isPinned ? Color.FromArgb("#E91E63") : Color.FromArgb("#9C27B0");
+            return isPinned ? Color.FromArgb("#C2185B") : Color.FromArgb("#7B1FA2");
         }
-        return Color.FromArgb("#9C27B0");
+        return Color.FromArgb("#7B1FA2");
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

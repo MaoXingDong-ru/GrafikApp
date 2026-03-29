@@ -5,6 +5,10 @@ VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Grafik", "Grafik\Grafik.csproj", "{C37FC718-F58F-4B1B-8B95-116A90EBECC9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GrafikAdmin", "GrafikAdmin\GrafikAdmin.csproj", "{91FC549C-7897-4597-AE8E-9E8892C9EFD1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GrafikShared", "GrafikShared\GrafikShared.csproj", "{B047BCD2-1725-46E7-8EB6-8FE9F83DFE5B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -17,6 +21,15 @@ Global
 		{C37FC718-F58F-4B1B-8B95-116A90EBECC9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C37FC718-F58F-4B1B-8B95-116A90EBECC9}.Release|Any CPU.Build.0 = Release|Any CPU
 		{C37FC718-F58F-4B1B-8B95-116A90EBECC9}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{91FC549C-7897-4597-AE8E-9E8892C9EFD1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{91FC549C-7897-4597-AE8E-9E8892C9EFD1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{91FC549C-7897-4597-AE8E-9E8892C9EFD1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{91FC549C-7897-4597-AE8E-9E8892C9EFD1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{91FC549C-7897-4597-AE8E-9E8892C9EFD1}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{B047BCD2-1725-46E7-8EB6-8FE9F83DFE5B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B047BCD2-1725-46E7-8EB6-8FE9F83DFE5B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B047BCD2-1725-46E7-8EB6-8FE9F83DFE5B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B047BCD2-1725-46E7-8EB6-8FE9F83DFE5B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
