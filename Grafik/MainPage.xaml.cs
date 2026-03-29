@@ -12,6 +12,8 @@ public partial class MainPage : ContentPage
     private readonly string scheduleFilePath = Path.Combine(FileSystem.AppDataDirectory, "schedule.json");
     private readonly string employeeListFilePath = Path.Combine(FileSystem.AppDataDirectory, "employees.json");
 
+    private static bool _monitorInitialized = false;
+
     public MainPage()
     {
         InitializeComponent();
@@ -22,23 +24,62 @@ public partial class MainPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        
+
+        // Запускаем мониторинг только ОДИН раз
+        if (!_monitorInitialized)
+        {
+            InitializeFirebaseMonitor();
+            _monitorInitialized = true;
+        }
+
+        // Подписываемся на изменение статуса соединения
+        FirebaseConnectionMonitor.Instance.ConnectionStatusChanged += OnConnectionStatusChanged;
+
+        // Устанавливаем текущее состояние кнопки сразу
+        ChatButton.IsVisible = FirebaseConnectionMonitor.Instance.IsConnected;
+
         // Проверяем, есть ли сохраненный файл для загрузки из чата
         await CheckAndLoadPendingScheduleFileAsync();
-        
-        // Проверяем подключение Firebase и показываем/скрываем кнопку чата
-        await UpdateChatButtonVisibilityAsync();
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+
+        // Отписываемся, чтобы не обновлять UI неактивной страницы
+        FirebaseConnectionMonitor.Instance.ConnectionStatusChanged -= OnConnectionStatusChanged;
     }
 
     /// <summary>
-    /// Динамически показываем/скрываем кнопку чата в зависимости от подключения Firebase
+    /// Обработчик изменения статуса соединения — обновляет видимость кнопки чата
     /// </summary>
-    private async Task UpdateChatButtonVisibilityAsync()
+    private void OnConnectionStatusChanged(object? sender, bool isConnected)
     {
-        bool firebaseOk = await VerifyFirebaseQuietlyAsync();
-        ChatButton.IsVisible = firebaseOk;
-        
-        Console.WriteLine($"[MainPage] Кнопка чата: {(firebaseOk ? "видима ✓" : "скрыта ✗")}");
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            ChatButton.IsVisible = isConnected;
+            Console.WriteLine($"[MainPage] Кнопка чата: {(isConnected ? "видима ✓" : "скрыта ✗")}");
+        });
+    }
+
+    /// <summary>
+    /// Инициализирует и запускает FirebaseConnectionMonitor
+    /// </summary>
+    private static void InitializeFirebaseMonitor()
+    {
+        Console.WriteLine("[MainPage] Инициализация мониторинга Firebase...");
+
+        var url = Preferences.Get("FirebaseUrl", string.Empty);
+
+        if (string.IsNullOrEmpty(url))
+        {
+            const string defaultUrl = "https://grafikchat-92791-default-rtdb.europe-west1.firebasedatabase.app";
+            Preferences.Set("FirebaseUrl", defaultUrl);
+            Console.WriteLine($"[MainPage] Установлен дефолтный URL: {defaultUrl}");
+        }
+
+        FirebaseConnectionMonitor.Instance.Start();
+        Console.WriteLine("[MainPage] Мониторинг запущен ✓");
     }
 
     private async void GoToChat(object sender, EventArgs e)
@@ -65,8 +106,6 @@ public partial class MainPage : ContentPage
             if (result != null)
             {
                 await ProcessExcelFile(result.FullPath);
-                // После загрузки проверяем Firebase и обновляем видимость кнопки чата
-                await UpdateChatButtonVisibilityAsync();
             }
         }
         catch (Exception ex)
@@ -179,12 +218,11 @@ public partial class MainPage : ContentPage
         var invalidNames = new HashSet<string>
         {
             "дата", "время", "date", "time", "",
-            "архипов дмитрий", "бруснигин антон" // Исключаем зарубежную техподдержку
+            "архипов дмитрий", "бруснигин антон"
         };
 
         var dayColumns = GetValidDayColumns(worksheet);
 
-        // Автоматически определяем количество сотрудников
         var (firstLineCount, secondLineCount, secondLineStartRow) = DetectEmployeeCounts(worksheet);
 
         int startRowFirstLine = 4;
@@ -193,7 +231,6 @@ public partial class MainPage : ContentPage
 
         if (secondLineCount > 0)
         {
-            // Используем реально найденную строку начала второй линии
             ProcessEmployeeGroup(worksheet, secondLineStartRow, secondLineCount,
                                result, invalidNames, true, dayColumns);
         }
@@ -203,16 +240,13 @@ public partial class MainPage : ContentPage
         return result;
     }
 
-    /// <summary>
-    /// Автоматически определяет количество сотрудников первой и второй линии
-    /// </summary>
     private static (int firstLineCount, int secondLineCount, int secondLineStartRow) DetectEmployeeCounts(IXLWorksheet worksheet)
     {
         const int startRow = 4;
         var invalidNames = new HashSet<string>
         {
             "дата", "время", "date", "time", "",
-            "архипов дмитрий", "бруснигин антон" // Исключаем зарубежную техподдержку
+            "архипов дмитрий", "бруснигин антон"
         };
 
         int firstLineCount = 0;
@@ -222,7 +256,7 @@ public partial class MainPage : ContentPage
         bool foundFirstLine = false;
         bool foundGap = false;
         int emptyRowsCount = 0;
-        const int emptyRowsThreshold = 2; // Если подряд 2+ пустые строки - это разделитель
+        const int emptyRowsThreshold = 2;
 
         var lastUsedCell = worksheet.LastRowUsed();
         if (lastUsedCell == null)
@@ -230,7 +264,6 @@ public partial class MainPage : ContentPage
 
         int lastRow = lastUsedCell.RowNumber();
 
-        // Ищем первую линию и её длину
         while (currentRow <= lastRow)
         {
             var nameCell = worksheet.Cell(currentRow, 1);
@@ -240,12 +273,10 @@ public partial class MainPage : ContentPage
             {
                 emptyRowsCount++;
 
-                // Если мы уже нашли первую линию и встретили достаточно пустых строк
                 if (foundFirstLine && !foundGap && emptyRowsCount >= emptyRowsThreshold)
                 {
                     foundGap = true;
                     currentRow++;
-                    // Пропускаем пропуск между линиями
                     while (currentRow <= lastRow)
                     {
                         string nextName = worksheet.Cell(currentRow, 1).GetString().Trim().ToLower();
@@ -258,7 +289,6 @@ public partial class MainPage : ContentPage
                             break;
                         }
                     }
-                    // Теперь currentRow указывает на начало второй линии
                     secondLineStartRow = currentRow;
                     break;
                 }
@@ -266,14 +296,13 @@ public partial class MainPage : ContentPage
             }
             else
             {
-                emptyRowsCount = 0; // Сбрасываем счётчик пустых строк
+                emptyRowsCount = 0;
                 foundFirstLine = true;
                 firstLineCount++;
                 currentRow++;
             }
         }
 
-        // Считаем вторую линию
         while (currentRow <= lastRow)
         {
             var nameCell = worksheet.Cell(currentRow, 1);
@@ -286,12 +315,10 @@ public partial class MainPage : ContentPage
             }
             else if (!string.IsNullOrWhiteSpace(rawName) && invalidNames.Contains(rawName))
             {
-                // Пропускаем исключённых сотрудников (зарубежную поддержку)
                 currentRow++;
             }
             else
             {
-                // Если встретили полностью пустую строку
                 break;
             }
         }
@@ -326,8 +353,7 @@ public partial class MainPage : ContentPage
     {
         int endRow = startRow + count;
         int lastProcessedRow = startRow;
-        
-        // Добавлено "вых" для частичного совпадения с "Вых", "ВЫХ", "вых." и т.д.
+
         var exclusionWords = new[] { "отпуск", "замещает", "выходной", "вых" };
 
         for (int row = startRow; row < endRow; row++)
@@ -444,69 +470,11 @@ public partial class MainPage : ContentPage
         if (EmployeePicker.SelectedItem is string selectedEmployee)
         {
             Preferences.Set("SelectedEmployee", selectedEmployee);
-            
-            // Silent проверка Firebase подключения перед открытием расписания
-            bool firebaseOk = await VerifyFirebaseQuietlyAsync();
-            if (!firebaseOk)
-            {
-                await DisplayAlert("Ошибка", "Firebase недоступна. Проверьте подключение в параметрах.", "OK");
-                return;
-            }
-            
             await Navigation.PushAsync(new EmployeeSchedulePage(selectedEmployee));
         }
         else
         {
             await DisplayAlert("Ошибка", "Пожалуйста, выберите сотрудника", "OK");
-        }
-    }
-
-    private async Task<bool> VerifyFirebaseQuietlyAsync()
-    {
-        try
-        {
-            var firebaseUrl = Preferences.Get("FirebaseUrl", string.Empty);
-            
-            if (string.IsNullOrEmpty(firebaseUrl))
-                return false;
-
-            var firebaseService = new FirebaseService(firebaseUrl);
-            await firebaseService.GetMessagesAsync();
-            
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Silent проверка подключения к Firebase без AlertDialog
-    /// </summary>
-    private async Task VerifyFirebaseConnectionAsync()
-    {
-        try
-        {
-            var firebaseUrl = Preferences.Get("FirebaseUrl", string.Empty);
-            
-            if (string.IsNullOrEmpty(firebaseUrl))
-            {
-                Console.WriteLine("[MainPage] Firebase URL не настроен");
-                return;
-            }
-
-            Console.WriteLine("[MainPage] Проверка подключения к Firebase...");
-            
-            var firebaseService = new FirebaseService(firebaseUrl);
-            var messages = await firebaseService.GetMessagesAsync();
-            
-            Console.WriteLine($"[MainPage] ✓ Подключение успешно! Сообщений: {messages.Count}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[MainPage] ✗ Ошибка подключения: {ex.Message}");
-            // Silent mode - ошибки не показываем, только логируем
         }
     }
 
@@ -519,21 +487,16 @@ public partial class MainPage : ContentPage
         {
             if (File.Exists(employeeListFilePath))
                 File.Delete(employeeListFilePath);
-                
+
             if (File.Exists(scheduleFilePath))
                 File.Delete(scheduleFilePath);
 
-            // Удаляем ТОЛЬКО данные расписания, но НЕ настройки!
             Preferences.Remove("SelectedEmployee");
             Preferences.Remove("PendingScheduleFile");
-            // ❌ НЕ вызываем Preferences.Clear()!
 
             await AnimateBackToStep1UI();
             await HideDeleteButton();
             DisplayMessage("Все данные были удалены");
-            
-            // После удаления проверяем Firebase и обновляем видимость кнопки чата
-            await UpdateChatButtonVisibilityAsync();
         }
         catch (Exception ex)
         {
@@ -589,6 +552,9 @@ public partial class MainPage : ContentPage
         DeleteData.IsVisible = false;
         DeleteData.TranslationX = -120;
 
+        // Кнопка чата скрыта до получения первого статуса от монитора
+        ChatButton.IsVisible = false;
+
         string selectedEmployee = Preferences.Get("SelectedEmployee", string.Empty);
         if (!string.IsNullOrEmpty(selectedEmployee))
         {
@@ -601,12 +567,11 @@ public partial class MainPage : ContentPage
         try
         {
             var pendingFile = Preferences.Get("PendingScheduleFile", string.Empty);
-            
+
             if (!string.IsNullOrEmpty(pendingFile) && File.Exists(pendingFile))
             {
                 Console.WriteLine("[MainPage] Найден ожидающий файл расписания: " + pendingFile);
-                
-                // Спрашиваем пользователя
+
                 bool shouldLoad = await DisplayAlert(
                     "📎 Загрузить расписание",
                     "Обнаружен файл расписания из чата.\n\nЗагрузить его сейчас?",
@@ -617,26 +582,25 @@ public partial class MainPage : ContentPage
                 if (shouldLoad)
                 {
                     Console.WriteLine("[MainPage] Загрузка ожидающего файла...");
-                    
+
                     try
                     {
                         await ClearAllDataAsync();
                         await ProcessExcelFileAsync(pendingFile);
-                        
-                        await DisplayAlert("✅ Успех", 
-                            "Расписание успешно загружено!", 
+
+                        await DisplayAlert("✅ Успех",
+                            "Расписание успешно загружено!",
                             "OK");
                     }
                     catch (Exception ex)
                     {
                         Console.WriteLine($"[MainPage] Ошибка при загрузке: {ex.Message}");
-                        await DisplayAlert("❌ Ошибка", 
-                            $"Не удалось загрузить расписание:\n{ex.Message}", 
+                        await DisplayAlert("❌ Ошибка",
+                            $"Не удалось загрузить расписание:\n{ex.Message}",
                             "OK");
                     }
                 }
-                
-                // В любом случае удаляем флаг
+
                 Preferences.Remove("PendingScheduleFile");
             }
         }

@@ -58,22 +58,26 @@ namespace Grafik
                 await AnimateSwitchAsync(e.Value);
             };
 
+            // Расписание загружается из локального файла — интернет не нужен
             LoadEmployeeScheduleAsync(employeeName);
-
-            // Проверяем подключение к Firebase в silent режиме
-            _ = VerifyFirebaseConnectionAsync();
         }
 
         protected override void OnAppearing()
         {
             base.OnAppearing();
 
-            // ✅ Подписываемся на событие при каждом появлении страницы
+            // Подписываемся на событие обмена сменами
             FirebaseConnectionMonitor.Instance.SwapApplied += OnSwapApplied;
 
-            Debug.WriteLine("[EmployeeSchedulePage] OnAppearing — подписка на SwapApplied");
+            // Подписываемся на изменение статуса соединения — обновляем кнопку чата
+            FirebaseConnectionMonitor.Instance.ConnectionStatusChanged += OnConnectionStatusChanged;
 
-            // Перезагружаем расписание при возврате на страницу
+            // Устанавливаем текущее состояние кнопки сразу
+            ChatButton.IsVisible = FirebaseConnectionMonitor.Instance.IsConnected;
+
+            Debug.WriteLine("[EmployeeSchedulePage] OnAppearing");
+
+            // Перезагружаем расписание при возврате на страницу (из локального файла)
             LoadEmployeeScheduleAsync(_employeeName);
         }
 
@@ -81,38 +85,22 @@ namespace Grafik
         {
             base.OnDisappearing();
 
-            // ✅ Отписываемся от события при уходе со страницы
             FirebaseConnectionMonitor.Instance.SwapApplied -= OnSwapApplied;
+            FirebaseConnectionMonitor.Instance.ConnectionStatusChanged -= OnConnectionStatusChanged;
 
-            Debug.WriteLine("[EmployeeSchedulePage] OnDisappearing — отписка от SwapApplied");
+            Debug.WriteLine("[EmployeeSchedulePage] OnDisappearing");
         }
 
         /// <summary>
-        /// Silent проверка подключения к Firebase без AlertDialog
+        /// Обработчик изменения статуса соединения — обновляет видимость кнопки чата
         /// </summary>
-        private async Task VerifyFirebaseConnectionAsync()
+        private void OnConnectionStatusChanged(object? sender, bool isConnected)
         {
-            try
+            MainThread.BeginInvokeOnMainThread(() =>
             {
-                var firebaseUrl = Preferences.Get("FirebaseUrl", string.Empty);
-
-                if (string.IsNullOrEmpty(firebaseUrl))
-                {
-                    Debug.WriteLine("[EmployeeSchedulePage] Firebase URL не настроен");
-                    return;
-                }
-
-                Debug.WriteLine("[EmployeeSchedulePage] Проверка подключения к Firebase...");
-
-                var firebaseService = new FirebaseService(firebaseUrl);
-                var messages = await firebaseService.GetMessagesAsync();
-
-                Debug.WriteLine($"[EmployeeSchedulePage] ✓ Подключение успешно! Сообщений: {messages.Count}");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[EmployeeSchedulePage] ✗ Ошибка подключения: {ex.Message}");
-            }
+                ChatButton.IsVisible = isConnected;
+                Debug.WriteLine($"[EmployeeSchedulePage] Кнопка чата: {(isConnected ? "видима ✓" : "скрыта ✗")}");
+            });
         }
 
         /// <summary>
@@ -122,18 +110,15 @@ namespace Grafik
         {
             Debug.WriteLine($"[EmployeeSchedulePage] 🔄 Получено событие обмена: {e.Swap.RequesterName} ↔️ {e.Swap.TargetName}");
 
-            // Проверяем, относится ли обмен к текущему сотруднику
             if (e.Swap.RequesterName.Equals(_employeeName, StringComparison.OrdinalIgnoreCase) ||
                 e.Swap.TargetName.Equals(_employeeName, StringComparison.OrdinalIgnoreCase))
             {
                 Debug.WriteLine($"[EmployeeSchedulePage] ✅ Обмен касается {_employeeName} — перезагружаем расписание");
 
-                // Перезагружаем расписание в UI потоке
                 await MainThread.InvokeOnMainThreadAsync(async () =>
                 {
                     LoadEmployeeScheduleAsync(_employeeName);
 
-                    // Показываем уведомление пользователю
                     await DisplayAlert(
                         "🔄 Расписание обновлено",
                         $"Обмен сменами одобрен!\n\n{e.Swap.RequesterName} ({e.Swap.RequesterDate:dd.MM}) ↔️ {e.Swap.TargetName} ({e.Swap.TargetDate:dd.MM})",
@@ -152,12 +137,10 @@ namespace Grafik
 
         private async Task HandleShiftSelection(ShiftEntry shift)
         {
-            // Проверяем, это мой рабочий день или выходной
             bool isMyWorkDay = !string.IsNullOrWhiteSpace(shift.Shift);
 
             if (isMyWorkDay)
             {
-                // Мой рабочий день — показываем информацию о смене
                 await DisplayAlert(
                     $"{shift.Date:dd MMMM} — {shift.Shift}",
                     BuildPopupText(shift),
@@ -166,9 +149,8 @@ namespace Grafik
             }
             else
             {
-                // Мой выходной — показываем кто работает в этот день
                 var whoWorks = GetWhoWorksOnDate(shift.Date);
-                
+
                 if (string.IsNullOrEmpty(whoWorks))
                 {
                     await DisplayAlert(
@@ -188,9 +170,6 @@ namespace Grafik
             }
         }
 
-        /// <summary>
-        /// Получить информацию о том, кто работает в указанную дату
-        /// </summary>
         private string GetWhoWorksOnDate(DateTime date)
         {
             var shiftsOnDate = _allSchedule
@@ -204,7 +183,6 @@ namespace Grafik
 
             var lines = new List<string>();
 
-            // Группируем по типу смены
             var groupedByShift = shiftsOnDate
                 .GroupBy(s => s.Shift ?? "Без названия")
                 .OrderBy(g => g.Key);
@@ -214,15 +192,13 @@ namespace Grafik
                 var shiftName = group.Key;
                 var employees = group.ToList();
 
-                // Разделяем на первую и вторую линию
                 var firstLine = employees.Where(e => !e.IsSecondLine).Select(e => e.Employees).ToList();
                 var secondLine = employees.Where(e => e.IsSecondLine).Select(e => e.Employees).ToList();
 
-                // Получаем время работы (берём из первой записи)
                 var worktime = employees.FirstOrDefault()?.Worktime ?? "";
 
                 lines.Add($"[{shiftName}]");
-                
+
                 if (!string.IsNullOrWhiteSpace(worktime))
                     lines.Add($"  Время: {worktime}");
 
@@ -232,7 +208,7 @@ namespace Grafik
                 if (secondLine.Count > 0)
                     lines.Add($"  2-я линия: {string.Join(", ", secondLine)}");
 
-                lines.Add(""); // Пустая строка между сменами
+                lines.Add("");
             }
 
             return string.Join("\n", lines).TrimEnd();
@@ -286,7 +262,6 @@ namespace Grafik
 
                 ScheduleListView.ItemsSource = _employeeSchedule;
 
-                // Определяем месяц и год на основе первой записи в расписании
                 DateTime monthToDisplay = today;
                 if (_employeeSchedule.Count > 0)
                 {
@@ -294,8 +269,7 @@ namespace Grafik
                 }
 
                 GenerateCalendarForMonth(monthToDisplay, today);
-                
-                // Планируем уведомления при загрузке
+
                 LoadScheduleData();
             }
             catch (Exception ex)
@@ -314,32 +288,27 @@ namespace Grafik
             var firstDayOfMonth = new DateTime(monthDate.Year, monthDate.Month, 1);
             var firstDayOfWeek = (int)firstDayOfMonth.DayOfWeek;
 
-            // Смещение для учёта стартового дня недели (понедельник = 1, воскресенье = 0)
             var daysBeforeMonthStarts = (firstDayOfWeek + 6) % 7;
 
             var calendarDays = new List<ShiftEntry>();
 
-            // Добавляем пустые ячейки для дней до начала месяца
             for (int i = 0; i < daysBeforeMonthStarts; i++)
             {
                 calendarDays.Add(new ShiftEntry { Date = DateTime.MinValue, IsVisibleDay = false });
             }
 
-            // Добавляем дни месяца
             for (int d = 1; d <= daysInMonth; d++)
             {
                 var date = new DateTime(monthDate.Year, monthDate.Month, d);
                 var shift = _employeeSchedule.FirstOrDefault(s => s.Date.Date == date);
 
-                var day = shift != null 
-                    ? CloneShiftEntry(shift) 
+                var day = shift != null
+                    ? CloneShiftEntry(shift)
                     : new ShiftEntry { Date = date, IsVisibleDay = true };
 
                 day.TileColor = GetTileColorForShift(day.Shift);
                 day.BorderColor = date == today ? Colors.Green : Colors.Transparent;
                 day.IsVisibleDay = true;
-
-                // Устанавливаем текст для отображения в календаре
                 day.ShiftDisplayText = GetShiftDisplayText(day, date);
 
                 calendarDays.Add(day);
@@ -348,29 +317,21 @@ namespace Grafik
             CalendarView.ItemsSource = calendarDays;
         }
 
-        /// <summary>
-        /// Получить текст для отображения в ячейке календаря
-        /// </summary>
         private string GetShiftDisplayText(ShiftEntry day, DateTime date)
         {
-            // Если у меня есть смена — показываем её
             if (!string.IsNullOrWhiteSpace(day.Shift))
                 return day.Shift;
 
-            // Если у меня выходной — проверяем, работает ли кто-то в этот день
             var othersWorking = _allSchedule
                 .Where(s => s.Date.Date == date.Date && !string.IsNullOrWhiteSpace(s.Shift))
                 .ToList();
 
             if (othersWorking.Count > 0)
-                return "..."; // Индикатор, что можно посмотреть кто работает
+                return "...";
 
-            return "—"; // Никто не работает
+            return "—";
         }
 
-        /// <summary>
-        /// Создать копию ShiftEntry для календаря (чтобы не мутировать оригинал)
-        /// </summary>
         private static ShiftEntry CloneShiftEntry(ShiftEntry original)
         {
             return new ShiftEntry
@@ -446,35 +407,27 @@ namespace Grafik
 
         private async void GoToChat(object sender, EventArgs e)
         {
-            // Передаем имя сотрудника в ChatPage
             await Navigation.PushAsync(new ChatPage(_employeeName));
         }
 
         private async void OnSwapClicked(object sender, EventArgs e)
-{
-    await Navigation.PushAsync(new ShiftSwapPage(_employeeName));
-}
+        {
+            await Navigation.PushAsync(new ShiftSwapPage(_employeeName));
+        }
 
-        /// <summary>
-        /// Загрузка расписания и планирование уведомлений при инициализации страницы.
-        /// Отменяет все старые уведомления перед планированием новых.
-        /// </summary>
         private void LoadScheduleData()
         {
             Debug.WriteLine("[EmployeeSchedulePage] LoadScheduleData");
 
             try
             {
-                // Получаем сохранённое напоминание (числовое значение enum)
                 string reminderStr = Preferences.Get("ReminderOption", ((int)ReminderOption.FifteenMinutesBefore).ToString());
-                
-                // Парсим как число, затем приводим к enum
+
                 if (int.TryParse(reminderStr, out int reminderValue) && Enum.IsDefined(typeof(ReminderOption), reminderValue))
                 {
                     var reminder = (ReminderOption)reminderValue;
                     Debug.WriteLine($"[EmployeeSchedulePage] Загружено напоминание: {reminder} ({reminderValue})");
 
-                    // Перепланируем: сначала отменяем все старые, потом создаём новые
                     NotificationService.RescheduleAllForEmployee(_employeeName, _allSchedule, reminder);
 
                     Debug.WriteLine($"[EmployeeSchedulePage] ✅ Уведомления перепланированы для {_employeeName}");

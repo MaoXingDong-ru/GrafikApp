@@ -17,6 +17,17 @@ public sealed class FirebaseConnectionMonitor : IDisposable
     private bool _isConnected;
     private bool _isStarted;
 
+    // Не используем статический HttpClient — пересоздаём при каждой проверке,
+    // чтобы избежать кеширования разорванного соединения
+    private static HttpClient CreatePingClient() => new(new HttpClientHandler
+    {
+        // Отключаем keep-alive для ping — каждый запрос создаёт новое соединение
+        MaxConnectionsPerServer = 1
+    })
+    {
+        Timeout = TimeSpan.FromSeconds(8)
+    };
+
     /// <summary>
     /// Событие изменения статуса соединения
     /// </summary>
@@ -132,10 +143,8 @@ public sealed class FirebaseConnectionMonitor : IDisposable
     /// </summary>
     private async Task PollingTickAsync()
     {
-        // 1. Проверяем соединение
         var connected = await CheckConnectionAsync();
 
-        // 2. Если соединение есть — проверяем обмены
         if (connected)
         {
             await CheckAndApplyApprovedSwapsAsync();
@@ -143,7 +152,9 @@ public sealed class FirebaseConnectionMonitor : IDisposable
     }
 
     /// <summary>
-    /// Проверить соединение
+    /// Проверить соединение прямым HTTP-запросом к узлу /messages.json.
+    /// Пингуем тот же узел, к которому есть доступ по правилам Firebase.
+    /// Каждый раз создаём новый HttpClient, чтобы не кешировать разорванное соединение.
     /// </summary>
     public async Task<bool> CheckConnectionAsync()
     {
@@ -151,6 +162,7 @@ public sealed class FirebaseConnectionMonitor : IDisposable
 
         if (string.IsNullOrEmpty(currentUrl))
         {
+            Log("⚠️ URL не задан");
             UpdateStatus(false);
             return false;
         }
@@ -162,11 +174,25 @@ public sealed class FirebaseConnectionMonitor : IDisposable
 
         try
         {
-            var service = new FirebaseService(_databaseUrl);
-            var messages = await service.GetMessagesAsync();
+            // Пингуем /messages.json?shallow=true — лёгкий запрос к доступному узлу.
+            // shallow=true возвращает только ключи, без тела сообщений.
+            var url = $"{_databaseUrl}/messages.json?shallow=true";
+            Log($"🔌 Ping: {url}");
 
-            UpdateStatus(true);
-            return true;
+            using var client = CreatePingClient();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            var response = await client.GetAsync(url, cts.Token);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Log($"✅ HTTP {(int)response.StatusCode}");
+                UpdateStatus(true);
+                return true;
+            }
+
+            Log($"❌ HTTP {(int)response.StatusCode}");
+            UpdateStatus(false);
+            return false;
         }
         catch (TaskCanceledException)
         {
@@ -225,7 +251,6 @@ public sealed class FirebaseConnectionMonitor : IDisposable
                 {
                     Log($"✅ Обмен {swap.Id} применён");
 
-                    // Уведомляем подписчиков (страницу расписания)
                     MainThread.BeginInvokeOnMainThread(() =>
                     {
                         SwapApplied?.Invoke(this, new SwapAppliedEventArgs(swap));
@@ -239,17 +264,11 @@ public sealed class FirebaseConnectionMonitor : IDisposable
         }
     }
 
-    /// <summary>
-    /// Проверить, был ли обмен уже применён локально
-    /// </summary>
     private static bool IsSwapApplied(string swapId)
     {
         return Preferences.Get($"swap_applied_{swapId}", false);
     }
 
-    /// <summary>
-    /// Применить обмен к локальному расписанию
-    /// </summary>
     private async Task<bool> ApplySwapToLocalScheduleAsync(ShiftSwapRequest request)
     {
         try

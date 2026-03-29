@@ -16,6 +16,16 @@ public sealed class FirebaseConnectionMonitor : IDisposable
     private bool _isConnected;
     private bool _isStarted;
 
+    // Не используем статический HttpClient — пересоздаём при каждой проверке,
+    // чтобы избежать кеширования разорванного соединения
+    private static HttpClient CreatePingClient() => new(new HttpClientHandler
+    {
+        MaxConnectionsPerServer = 1
+    })
+    {
+        Timeout = TimeSpan.FromSeconds(8)
+    };
+
     /// <summary>
     /// Событие изменения статуса соединения
     /// </summary>
@@ -136,10 +146,8 @@ public sealed class FirebaseConnectionMonitor : IDisposable
     /// </summary>
     private async Task PollingTickAsync()
     {
-        // 1. Проверяем соединение
         var connected = await CheckConnectionAsync();
 
-        // 2. Если соединение есть — обновляем счётчик ожидающих запросов
         if (connected)
         {
             await UpdatePendingSwapsCountAsync();
@@ -147,7 +155,9 @@ public sealed class FirebaseConnectionMonitor : IDisposable
     }
 
     /// <summary>
-    /// Проверить соединение
+    /// Проверить соединение прямым HTTP-запросом к узлу /swapRequests.json.
+    /// Пингуем тот же узел, к которому есть доступ по правилам Firebase.
+    /// Каждый раз создаём новый HttpClient, чтобы не кешировать разорванное соединение.
     /// </summary>
     public async Task<bool> CheckConnectionAsync()
     {
@@ -155,6 +165,7 @@ public sealed class FirebaseConnectionMonitor : IDisposable
 
         if (string.IsNullOrEmpty(currentUrl))
         {
+            Log("⚠️ URL не задан");
             UpdateConnectionStatus(false);
             return false;
         }
@@ -166,11 +177,25 @@ public sealed class FirebaseConnectionMonitor : IDisposable
 
         try
         {
-            var service = new ShiftSwapService(_databaseUrl);
-            var requests = await service.GetAllRequestsAsync();
+            // Пингуем /swapRequests.json?shallow=true — лёгкий запрос к доступному узлу.
+            // shallow=true возвращает только ключи, без данных.
+            var url = $"{_databaseUrl}/swapRequests.json?shallow=true";
+            Log($"🔌 Ping: {url}");
 
-            UpdateConnectionStatus(true);
-            return true;
+            using var client = CreatePingClient();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            var response = await client.GetAsync(url, cts.Token);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Log($"✅ HTTP {(int)response.StatusCode}");
+                UpdateConnectionStatus(true);
+                return true;
+            }
+
+            Log($"❌ HTTP {(int)response.StatusCode}");
+            UpdateConnectionStatus(false);
+            return false;
         }
         catch (TaskCanceledException)
         {
