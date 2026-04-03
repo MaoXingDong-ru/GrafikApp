@@ -1,31 +1,32 @@
 ﻿using ClosedXML.Excel;
+using CommunityToolkit.Maui.Storage;
 using GrafikAdmin.Models;
 
 namespace GrafikAdmin.Services;
 
-/// <summary>
+
 /// Сервис экспорта расписания в Excel (формат совместимый с Grafik)
-/// </summary>
+
 public class ExcelExportService
 {
-    private readonly string _shareDirectory;
-
     public ExcelExportService()
     {
-        _shareDirectory = Path.Combine(FileSystem.AppDataDirectory, "share");
-        
-        if (!Directory.Exists(_shareDirectory))
-            Directory.CreateDirectory(_shareDirectory);
     }
 
-    public string ShareDirectory => _shareDirectory;
 
-    /// <summary>
-    /// Экспортировать в Excel
-    /// </summary>
-    public async Task<string> ExportToExcelAsync(MonthlySchedule schedule)
+    // Экспортировать в Excel с выбором пути сохранения
+
+    public async Task<string> ExportToExcelAsync(MonthlySchedule schedule, CancellationToken cancellationToken = default)
     {
-        return await Task.Run(() =>
+        // Получаем название месяца для предложения имени файла
+        string monthName = GetRussianMonthName(schedule.Month);
+        string suggestedFileName = $"{monthName}_{schedule.Year}.xlsx";
+
+        // Создаем MemoryStream с файлом
+        using var memoryStream = new MemoryStream();
+
+        // Создаем Excel файл в памяти
+        await Task.Run(() =>
         {
             using var workbook = new XLWorkbook();
             var worksheet = workbook.Worksheets.Add("Расписание");
@@ -36,12 +37,12 @@ public class ExcelExportService
             worksheet.Cell(1, 1).Value = "Дата";
             worksheet.Cell(1, 1).Style.Font.Bold = true;
             worksheet.Cell(1, 1).Style.Fill.BackgroundColor = XLColor.LightGray;
-            
+
             for (int day = 1; day <= daysInMonth; day++)
             {
                 var date = new DateTime(schedule.Year, schedule.Month, day);
                 int col = 2 + (day - 1) * 2;
-                
+
                 worksheet.Cell(1, col).Value = date.ToString("dd.MM.yyyy");
                 worksheet.Range(1, col, 1, col + 1).Merge();
                 worksheet.Cell(1, col).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
@@ -55,13 +56,12 @@ public class ExcelExportService
             {
                 var date = new DateTime(schedule.Year, schedule.Month, day);
                 int col = 2 + (day - 1) * 2;
-                
+
                 string dayOfWeek = date.ToString("dddd", new System.Globalization.CultureInfo("ru-RU"));
                 worksheet.Cell(2, col).Value = dayOfWeek;
                 worksheet.Range(2, col, 2, col + 1).Merge();
                 worksheet.Cell(2, col).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                
-                // Выходные выделяем цветом
+
                 if (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
                 {
                     worksheet.Cell(2, col).Style.Fill.BackgroundColor = XLColor.LightPink;
@@ -71,7 +71,7 @@ public class ExcelExportService
             // === СТРОКА 3: "сотрудник/смена" + "день/ночь" ===
             worksheet.Cell(3, 1).Value = "сотрудник \\ смена";
             worksheet.Cell(3, 1).Style.Fill.BackgroundColor = XLColor.LightGray;
-            
+
             for (int day = 1; day <= daysInMonth; day++)
             {
                 int col = 2 + (day - 1) * 2;
@@ -81,7 +81,7 @@ public class ExcelExportService
                 worksheet.Cell(3, col + 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
             }
 
-            // === Сотрудники первой линии (начиная со строки 4) ===
+            // === Сотрудники первой линии ===
             var firstLineEmployees = schedule.Employees
                 .Where(e => !schedule.SecondLineEmployees.Contains(e))
                 .ToList();
@@ -95,31 +95,30 @@ public class ExcelExportService
                 currentRow++;
             }
 
-            // === Пустые строки-разделители ===
             currentRow += 2;
 
-            // === Вторая линия (если есть) ===
-            if (schedule.SecondLineEmployees.Count > 0)
+            // === Вторая линия ===
+            if (schedule.SecondLineEmployees.Count > 0 || HasSecondLineShifts(schedule, firstLineEmployees))
             {
-                // Повторяем заголовки дат для второй линии
+                int secondLineHeaderRow = currentRow;
+
                 worksheet.Cell(currentRow, 1).Value = "дата";
                 worksheet.Cell(currentRow, 1).Style.Fill.BackgroundColor = XLColor.LightGray;
-                
+
                 for (int day = 1; day <= daysInMonth; day++)
                 {
                     var date = new DateTime(schedule.Year, schedule.Month, day);
                     int col = 2 + (day - 1) * 2;
-                    
+
                     worksheet.Cell(currentRow, col).Value = date.ToString("dd.MM.yyyy");
                     worksheet.Range(currentRow, col, currentRow, col + 1).Merge();
                     worksheet.Cell(currentRow, col).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                 }
                 currentRow++;
 
-                // Строка времени
                 worksheet.Cell(currentRow, 1).Value = "время";
                 worksheet.Cell(currentRow, 1).Style.Fill.BackgroundColor = XLColor.LightGray;
-                
+
                 for (int day = 1; day <= daysInMonth; day++)
                 {
                     int col = 2 + (day - 1) * 2;
@@ -130,13 +129,17 @@ public class ExcelExportService
                 }
                 currentRow++;
 
-                // Сотрудники второй линии
+                // Сотрудники второй линии (штатные)
                 foreach (var employee in schedule.SecondLineEmployees)
                 {
                     worksheet.Cell(currentRow, 1).Value = employee;
                     FillEmployeeRow(worksheet, currentRow, employee, schedule, daysInMonth);
                     currentRow++;
                 }
+
+                // Сотрудники первой линии, назначенные на "2 линия" — добавляем их имена
+                // в ячейки второй линии
+                FillFirstLineAsSecondLine(worksheet, currentRow, firstLineEmployees, schedule, daysInMonth);
             }
 
             // === Форматирование ===
@@ -144,7 +147,6 @@ public class ExcelExportService
             for (int col = 2; col <= 2 + daysInMonth * 2; col++)
                 worksheet.Column(col).Width = 6;
 
-            // Границы для использованного диапазона
             var usedRange = worksheet.RangeUsed();
             if (usedRange != null)
             {
@@ -152,29 +154,102 @@ public class ExcelExportService
                 usedRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
             }
 
-            // === Сохранение ===
-            var fileName = $"Расписание_{schedule.Year}_{schedule.Month:D2}.xlsx";
-            var filePath = Path.Combine(_shareDirectory, fileName);
-            workbook.SaveAs(filePath);
+            // Сохраняем в MemoryStream
+            workbook.SaveAs(memoryStream);
+            memoryStream.Position = 0; // Сбрасываем позицию для чтения
+        });
 
-            System.Diagnostics.Debug.WriteLine($"[ExcelExport] Файл сохранён: {filePath}");
+        // Используем FileSaver из CommunityToolkit для сохранения с диалогом
+        try
+        {
+            var fileSaverResult = await FileSaver.Default.SaveAsync(
+                suggestedFileName,
+                memoryStream,
+                cancellationToken);
+
+            fileSaverResult.EnsureSuccess();
+
+            System.Diagnostics.Debug.WriteLine($"[ExcelExport] Файл сохранён: {fileSaverResult.FilePath}");
+            return fileSaverResult.FilePath;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ExcelExport] Ошибка при сохранении: {ex.Message}");
+
+            // Fallback: сохраняем в папку приложения
+            string fallbackPath = GetDefaultSavePath();
+            string fileName = $"{GetRussianMonthName(schedule.Month)}_{schedule.Year}.xlsx";
+            string filePath = Path.Combine(fallbackPath, fileName);
+
+            // Сохраняем файл
+            using var fileStream = File.Create(filePath);
+            memoryStream.Position = 0;
+            await memoryStream.CopyToAsync(fileStream);
 
             return filePath;
-        });
+        }
     }
 
-    /// <summary>
-    /// Заполнить строку сотрудника
-    /// </summary>
-    private static void FillEmployeeRow(IXLWorksheet worksheet, int row, string employee, 
+
+    // Получить название месяца на русском языке
+
+    private string GetRussianMonthName(int month)
+    {
+        string[] monthNames =
+        {
+            "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+            "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+        };
+
+        return monthNames[month - 1];
+    }
+
+
+    // Получить путь для сохранения по умолчанию
+
+    private string GetDefaultSavePath()
+    {
+        try
+        {
+            string documentsPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "GrafikAdmin",
+                "Расписания");
+
+            if (!Directory.Exists(documentsPath))
+                Directory.CreateDirectory(documentsPath);
+
+            return documentsPath;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ExcelExport] Ошибка при создании папки: {ex.Message}");
+            return FileSystem.AppDataDirectory;
+        }
+    }
+
+
+    // Проверяет, есть ли у сотрудников первой линии смены типа "2 линия"
+
+    private static bool HasSecondLineShifts(MonthlySchedule schedule, List<string> firstLineEmployees)
+    {
+        return schedule.Entries.Any(e =>
+            firstLineEmployees.Contains(e.EmployeeName) &&
+            e.ShiftType.IsSecondLineShift());
+    }
+
+
+    // Заполнить строку сотрудника
+
+    private static void FillEmployeeRow(IXLWorksheet worksheet, int row, string employee,
         MonthlySchedule schedule, int daysInMonth)
     {
         for (int day = 1; day <= daysInMonth; day++)
         {
             var date = new DateTime(schedule.Year, schedule.Month, day);
-            int col = 2 + (day - 1) * 2; // день = col, ночь = col + 1
-            
-            var entry = schedule.Entries.FirstOrDefault(e => 
+            int col = 2 + (day - 1) * 2;
+
+            var entry = schedule.Entries.FirstOrDefault(e =>
                 e.EmployeeName == employee && e.Date.Date == date.Date);
 
             if (entry != null)
@@ -183,34 +258,46 @@ public class ExcelExportService
                 {
                     case ShiftType.Day:
                         worksheet.Cell(row, col).Value = 12;
-                        worksheet.Cell(row, col).Style.Fill.BackgroundColor = XLColor.FromHtml("#FFEB3B"); // Жёлтый
+                        worksheet.Cell(row, col).Style.Fill.BackgroundColor = XLColor.FromHtml("#FFEB3B");
                         break;
-                        
+
                     case ShiftType.Night:
                         worksheet.Cell(row, col + 1).Value = 12;
-                        worksheet.Cell(row, col + 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#90CAF9"); // Голубой
+                        worksheet.Cell(row, col + 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#90CAF9");
                         break;
-                        
+
+                    // Сотрудник первой линии на "2 линия (день)" —
+                    // в своей строке первой линии отображается как дневная смена
+                    case ShiftType.SecondLineDay:
+                        worksheet.Cell(row, col).Value = 12;
+                        worksheet.Cell(row, col).Style.Fill.BackgroundColor = XLColor.FromHtml("#FFEB3B");
+                        break;
+
+                    // Сотрудник первой линии на "2 линия (ночь)" —
+                    // в своей строке первой линии отображается как ночная смена
+                    case ShiftType.SecondLineNight:
+                        worksheet.Cell(row, col + 1).Value = 12;
+                        worksheet.Cell(row, col + 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#90CAF9");
+                        break;
+
                     case ShiftType.Vacation:
                         worksheet.Cell(row, col).Value = "отпуск";
                         worksheet.Range(row, col, row, col + 1).Merge();
                         worksheet.Cell(row, col).Style.Fill.BackgroundColor = XLColor.LightGreen;
                         worksheet.Cell(row, col).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                         break;
-                        
+
                     case ShiftType.SickLeave:
                         worksheet.Cell(row, col).Value = "б/л";
                         worksheet.Range(row, col, row, col + 1).Merge();
                         worksheet.Cell(row, col).Style.Fill.BackgroundColor = XLColor.LightPink;
                         worksheet.Cell(row, col).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                         break;
-                        
+
                     case ShiftType.DayOff:
-                        // Выходной — ячейки пустые, можно добавить штриховку
                         var isWeekend = date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
                         if (isWeekend)
                         {
-                            // Штриховка для выходных
                             worksheet.Cell(row, col).Style.Fill.PatternType = XLFillPatternValues.LightUp;
                             worksheet.Cell(row, col + 1).Style.Fill.PatternType = XLFillPatternValues.LightUp;
                         }
@@ -220,47 +307,90 @@ public class ExcelExportService
         }
     }
 
-    /// <summary>
-    /// Получить список экспортированных файлов
-    /// </summary>
-    public List<ExportedFile> GetExportedFiles()
+
+    // Вписать имена сотрудников первой линии, назначенных на "2 линия",
+    // в область второй линии Excel (как на фото — "Павел" внизу во второй линии)
+
+    private static void FillFirstLineAsSecondLine(IXLWorksheet worksheet, int startRow,
+        List<string> firstLineEmployees, MonthlySchedule schedule, int daysInMonth)
     {
-        var files = new List<ExportedFile>();
+        // Собираем все записи первой линии с типом SecondLineDay/SecondLineNight
+        var secondLineEntries = schedule.Entries
+            .Where(e => firstLineEmployees.Contains(e.EmployeeName) && e.ShiftType.IsSecondLineShift())
+            .ToList();
 
-        if (!Directory.Exists(_shareDirectory))
-            return files;
+        if (secondLineEntries.Count == 0)
+            return;
 
-        foreach (var file in Directory.GetFiles(_shareDirectory, "*.xlsx"))
+        // Группируем по дате + тип (день/ночь), чтобы знать, сколько строк нужно
+        // На одну дату может быть несколько сотрудников первой линии на 2 линии
+        // Находим максимальное количество сотрудников на одну дату+смену
+        int maxPerSlot = 1;
+        for (int day = 1; day <= daysInMonth; day++)
         {
-            var fileInfo = new FileInfo(file);
-            files.Add(new ExportedFile
-            {
-                FileName = fileInfo.Name,
-                FilePath = file,
-                CreatedAt = fileInfo.CreationTime,
-                FileSize = fileInfo.Length
-            });
+            var date = new DateTime(schedule.Year, schedule.Month, day);
+            var dayCount = secondLineEntries.Count(e => e.Date.Date == date.Date && e.ShiftType == ShiftType.SecondLineDay);
+            var nightCount = secondLineEntries.Count(e => e.Date.Date == date.Date && e.ShiftType == ShiftType.SecondLineNight);
+            maxPerSlot = Math.Max(maxPerSlot, Math.Max(dayCount, nightCount));
         }
 
-        return files.OrderByDescending(f => f.CreatedAt).ToList();
+        // Добавляем строки для имён сотрудников первой линии на второй линии
+        for (int slot = 0; slot < maxPerSlot; slot++)
+        {
+            int row = startRow + slot;
+
+            // Пустое имя — это дополнительная строка для имён
+            worksheet.Cell(row, 1).Value = "";
+
+            for (int day = 1; day <= daysInMonth; day++)
+            {
+                var date = new DateTime(schedule.Year, schedule.Month, day);
+                int col = 2 + (day - 1) * 2;
+
+                // Дневная смена "2 линия"
+                var dayEntries = secondLineEntries
+                    .Where(e => e.Date.Date == date.Date && e.ShiftType == ShiftType.SecondLineDay)
+                    .ToList();
+
+                if (slot < dayEntries.Count)
+                {
+                    var shortName = GetShortName(dayEntries[slot].EmployeeName);
+                    worksheet.Cell(row, col).Value = shortName;
+                    worksheet.Cell(row, col).Style.Fill.BackgroundColor = XLColor.FromHtml("#C8E6C9");
+                    worksheet.Cell(row, col).Style.Font.FontSize = 8;
+                    worksheet.Cell(row, col).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                }
+
+                // Ночная смена "2 линия"
+                var nightEntries = secondLineEntries
+                    .Where(e => e.Date.Date == date.Date && e.ShiftType == ShiftType.SecondLineNight)
+                    .ToList();
+
+                if (slot < nightEntries.Count)
+                {
+                    var shortName = GetShortName(nightEntries[slot].EmployeeName);
+                    worksheet.Cell(row, col + 1).Value = shortName;
+                    worksheet.Cell(row, col + 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#C8E6C9");
+                    worksheet.Cell(row, col + 1).Style.Font.FontSize = 8;
+                    worksheet.Cell(row, col + 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                }
+            }
+        }
     }
 
-    /// <summary>
-    /// Очистить папку share
-    /// </summary>
-    public void ClearShareDirectory()
+
+    // Извлечь короткое имя из ФИО (например, "Икалов Павел" → "Павел")
+
+    private static string GetShortName(string fullName)
     {
-        if (Directory.Exists(_shareDirectory))
-        {
-            foreach (var file in Directory.GetFiles(_shareDirectory))
-                File.Delete(file);
-        }
+        var parts = fullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2 ? parts[1] : parts[0];
     }
 }
 
-/// <summary>
+
 /// Информация об экспортированном файле
-/// </summary>
+
 public record ExportedFile
 {
     public string FileName { get; init; } = string.Empty;

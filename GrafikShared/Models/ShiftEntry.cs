@@ -2,9 +2,9 @@
 
 namespace GrafikShared.Models;
 
-/// <summary>
+
 /// Запись расписания смены
-/// </summary>
+
 public class ShiftEntry
 {
     [JsonPropertyName("date")]

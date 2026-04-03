@@ -7,14 +7,14 @@ public partial class SettingsPage : ContentPage
 {
     private readonly string settingsFilePath = Path.Combine(FileSystem.AppDataDirectory, "settings.json");
     
-    /// <summary>
-    /// Firebase URL по умолчанию
-    /// </summary>
+
+    // Firebase URL по умолчанию
+
     private const string DefaultFirebaseUrl = "https://grafikchat-92791-default-rtdb.europe-west1.firebasedatabase.app/";
 
-    /// <summary>
-    /// Маппинг индексов Picker на ReminderOption
-    /// </summary>
+
+    // Маппинг индексов Picker на ReminderOption
+
     private static readonly ReminderOption[] ReminderOptions =
     [
         ReminderOption.FifteenMinutesBefore,  // 0 - "За 15 минут"
@@ -62,9 +62,9 @@ public partial class SettingsPage : ContentPage
         }
     }
 
-    /// <summary>
-    /// Получить индекс Picker из ReminderOption
-    /// </summary>
+
+    // Получить индекс Picker из ReminderOption
+
     private static int GetPickerIndexFromReminder(ReminderOption reminder)
     {
         for (int i = 0; i < ReminderOptions.Length; i++)
@@ -75,9 +75,9 @@ public partial class SettingsPage : ContentPage
         return 0; // По умолчанию "За 15 минут"
     }
 
-    /// <summary>
-    /// Получить ReminderOption из индекса Picker
-    /// </summary>
+
+    // Получить ReminderOption из индекса Picker
+
     private static ReminderOption GetReminderFromPickerIndex(int index)
     {
         if (index >= 0 && index < ReminderOptions.Length)
@@ -125,9 +125,9 @@ public partial class SettingsPage : ContentPage
         await DisplayAlert("Успех", "Параметры сохранены", "OK");
     }
 
-    /// <summary>
-    /// Перепланировать уведомления после сохранения настроек
-    /// </summary>
+
+    // Перепланировать уведомления после сохранения настроек
+
     private static void RescheduleNotificationsAfterSave(ReminderOption reminder)
     {
         try
@@ -202,9 +202,9 @@ public partial class SettingsPage : ContentPage
         }
     }
 
-    /// <summary>
-    /// Открыть страницу баг-репортов и предложений
-    /// </summary>
+
+    // Открыть страницу баг-репортов и предложений
+
     private async void OnBugReportClicked(object sender, EventArgs e)
     {
         await Navigation.PushAsync(new BugReportPage());

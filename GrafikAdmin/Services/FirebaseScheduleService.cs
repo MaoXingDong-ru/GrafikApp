@@ -6,9 +6,9 @@ using GrafikAdmin.Models;
 
 namespace GrafikAdmin.Services;
 
-/// <summary>
+
 /// Сообщение для Firebase (аналог FirebaseMessage из Grafik)
-/// </summary>
+
 public class FirebaseChatMessage
 {
     [JsonPropertyName("sender")]
@@ -42,9 +42,9 @@ public class FirebaseChatMessage
     public Dictionary<string, bool>? ReadBy { get; set; }
 }
 
-/// <summary>
+
 /// Сервис для выгрузки расписания в чат Firebase
-/// </summary>
+
 public class FirebaseScheduleService : IDisposable
 {
     private readonly string _databaseUrl;
@@ -78,9 +78,9 @@ public class FirebaseScheduleService : IDisposable
     private static void Log(string message) =>
         Debug.WriteLine($"[FirebaseScheduleService] {message}");
 
-    /// <summary>
-    /// Callback для поддержания соединения
-    /// </summary>
+
+    // Callback для поддержания соединения
+
     private async void KeepAliveCallback(object? state)
     {
         try
@@ -97,9 +97,9 @@ public class FirebaseScheduleService : IDisposable
         }
     }
 
-    /// <summary>
-    /// Прогреть соединение перед важной операцией
-    /// </summary>
+
+    // Прогреть соединение перед важной операцией
+
     public async Task WarmUpConnectionAsync()
     {
         try
@@ -131,9 +131,9 @@ public class FirebaseScheduleService : IDisposable
         }
     }
 
-    /// <summary>
-    /// Выгрузить расписание как закреплённое сообщение в чат
-    /// </summary>
+
+    // Выгрузить расписание как закреплённое сообщение в чат
+
     public async Task<bool> UploadScheduleToChatAsync(MonthlySchedule schedule)
     {
         try
@@ -235,9 +235,9 @@ public class FirebaseScheduleService : IDisposable
         }
     }
 
-    /// <summary>
-    /// Проверить подключение к Firebase
-    /// </summary>
+
+    // Проверить подключение к Firebase
+
     public async Task<bool> TestConnectionAsync()
     {
         try
@@ -258,9 +258,9 @@ public class FirebaseScheduleService : IDisposable
         }
     }
 
-    /// <summary>
-    /// Статус соединения (прогрето ли)
-    /// </summary>
+
+    // Статус соединения (прогрето ли)
+
     public bool IsWarmedUp => _isWarmedUp;
 
     public void Dispose()

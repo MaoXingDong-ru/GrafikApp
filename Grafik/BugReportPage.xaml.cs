@@ -4,9 +4,9 @@ using System.Diagnostics;
 
 namespace Grafik;
 
-/// <summary>
+
 /// ViewModel страницы для привязки IsDev и StatusOptions в DataTemplate
-/// </summary>
+
 public class BugReportPageViewModel
 {
     public bool IsDev { get; set; }
@@ -75,18 +75,18 @@ public partial class BugReportPage : ContentPage
         }
     }
 
-    /// <summary>
-    /// Показать панель создания нового обращения
-    /// </summary>
+
+    // Показать панель создания нового обращения
+
     private void OnAddClicked(object? sender, EventArgs e)
     {
         NewReportPanel.IsVisible = true;
         AddButton.IsVisible = false;
     }
 
-    /// <summary>
-    /// Скрыть панель и очистить поля
-    /// </summary>
+
+    // Скрыть панель и очистить поля
+
     private void OnCancelClicked(object? sender, EventArgs e)
     {
         ClearForm();
@@ -94,9 +94,9 @@ public partial class BugReportPage : ContentPage
         AddButton.IsVisible = true;
     }
 
-    /// <summary>
-    /// Отправить баг-репорт / предложение
-    /// </summary>
+
+    // Отправить баг-репорт / предложение
+
     private async void OnSubmitClicked(object? sender, EventArgs e)
     {
         var title = TitleEntry.Text?.Trim();
@@ -152,9 +152,9 @@ public partial class BugReportPage : ContentPage
         }
     }
 
-    /// <summary>
-    /// Единая кнопка «Сохранить» — отправляет статус + комментарий одним действием
-    /// </summary>
+
+    // Единая кнопка «Сохранить» — отправляет статус + комментарий одним действием
+
     private async void OnSaveDevResponseClicked(object? sender, EventArgs e)
     {
         if (sender is not Button button || button.CommandParameter is not BugReport report)
@@ -196,11 +196,11 @@ public partial class BugReportPage : ContentPage
         }
     }
 
-    /// <summary>
-    /// Рекурсивный поиск первого дочернего элемента указанного типа
-    /// в визуальном дереве, начиная с родителя.
-    /// Обходит Border, StackLayout и другие контейнеры.
-    /// </summary>
+
+    // Рекурсивный поиск первого дочернего элемента указанного типа
+    // в визуальном дереве, начиная с родителя.
+    // Обходит Border, StackLayout и другие контейнеры.
+
     private static T? FindChildOfType<T>(object? parent) where T : View
     {
         if (parent is T found)

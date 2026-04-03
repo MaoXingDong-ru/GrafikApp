@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 
 namespace GrafikShared.Services;
 
-/// <summary>
+
 /// Сервис для работы с запросами на обмен сменами через Firebase
-/// </summary>
+
 public class ShiftSwapService
 {
     private const string FirebaseNode = "swapRequests";
@@ -30,9 +30,9 @@ public class ShiftSwapService
         Debug.WriteLine($"[ShiftSwapService] {message}");
     }
 
-    /// <summary>
-    /// Создать новый запрос на обмен сменами
-    /// </summary>
+
+    // Создать новый запрос на обмен сменами
+
     public async Task<bool> CreateSwapRequestAsync(ShiftSwapRequest request)
     {
         try
@@ -64,9 +64,9 @@ public class ShiftSwapService
         }
     }
 
-    /// <summary>
-    /// Получить все запросы на обмен
-    /// </summary>
+
+    // Получить все запросы на обмен
+
     public async Task<List<ShiftSwapRequest>> GetAllRequestsAsync()
     {
         try
@@ -120,9 +120,9 @@ public class ShiftSwapService
         }
     }
 
-    /// <summary>
-    /// Получить запросы для конкретного сотрудника (как инициатор или цель)
-    /// </summary>
+
+    // Получить запросы для конкретного сотрудника (как инициатор или цель)
+
     public async Task<List<ShiftSwapRequest>> GetRequestsForEmployeeAsync(string employeeName)
     {
         var allRequests = await GetAllRequestsAsync();
@@ -132,34 +132,34 @@ public class ShiftSwapService
             .ToList();
     }
 
-    /// <summary>
-    /// Получить ожидающие запросы (для админа)
-    /// </summary>
+
+    // Получить ожидающие запросы (для админа)
+
     public async Task<List<ShiftSwapRequest>> GetPendingRequestsAsync()
     {
         var allRequests = await GetAllRequestsAsync();
         return allRequests.Where(r => r.Status == "pending").ToList();
     }
 
-    /// <summary>
-    /// Одобрить запрос на обмен
-    /// </summary>
+
+    // Одобрить запрос на обмен
+
     public async Task<bool> ApproveRequestAsync(string firebaseKey, string adminComment = "")
     {
         return await UpdateRequestStatusAsync(firebaseKey, "approved", adminComment);
     }
 
-    /// <summary>
-    /// Отклонить запрос на обмен
-    /// </summary>
+
+    // Отклонить запрос на обмен
+
     public async Task<bool> DenyRequestAsync(string firebaseKey, string adminComment = "")
     {
         return await UpdateRequestStatusAsync(firebaseKey, "denied", adminComment);
     }
 
-    /// <summary>
-    /// Обновить статус запроса
-    /// </summary>
+
+    // Обновить статус запроса
+
     private async Task<bool> UpdateRequestStatusAsync(string firebaseKey, string status, string adminComment)
     {
         try
@@ -198,9 +198,9 @@ public class ShiftSwapService
         }
     }
 
-    /// <summary>
-    /// Удалить запрос (например, отменить до одобрения)
-    /// </summary>
+
+    // Удалить запрос (например, отменить до одобрения)
+
     public async Task<bool> DeleteRequestAsync(string firebaseKey)
     {
         try
@@ -226,9 +226,9 @@ public class ShiftSwapService
         }
     }
 
-    /// <summary>
-    /// Проверить, есть ли у сотрудника ожидающий запрос на конкретную дату
-    /// </summary>
+
+    // Проверить, есть ли у сотрудника ожидающий запрос на конкретную дату
+
     public async Task<bool> HasPendingRequestForDateAsync(string employeeName, DateTime date)
     {
         var requests = await GetRequestsForEmployeeAsync(employeeName);

@@ -3,9 +3,9 @@ using System.Text.Json.Serialization;
 
 namespace GrafikShared.Services;
 
-/// <summary>
+
 /// Запрос на обмен сменами между сотрудниками
-/// </summary>
+
 public class ShiftSwapRequest
 {
     [JsonPropertyName("id")]

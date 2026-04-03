@@ -4,9 +4,9 @@ using System.Text.Json.Serialization;
 
 namespace GrafikShared.Models;
 
-/// <summary>
+
 /// Сообщение в Firebase чате
-/// </summary>
+
 public class FirebaseMessage
 {
     [JsonPropertyName("sender")]

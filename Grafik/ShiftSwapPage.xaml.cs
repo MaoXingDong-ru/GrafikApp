@@ -320,9 +320,9 @@ public partial class ShiftSwapPage : ContentPage
         }
     }
 
-    /// <summary>
-    /// Определяет тип смены: "day", "night" или "other"
-    /// </summary>
+
+    // Определяет тип смены: "day", "night" или "other"
+
     private static string GetShiftType(string? shift)
     {
         if (string.IsNullOrWhiteSpace(shift))
@@ -339,9 +339,9 @@ public partial class ShiftSwapPage : ContentPage
         return "other";
     }
 
-    /// <summary>
-    /// Проверяет, является ли смена ночной (для сортировки)
-    /// </summary>
+
+    // Проверяет, является ли смена ночной (для сортировки)
+
     private static bool IsNightShift(string? shift)
     {
         if (string.IsNullOrWhiteSpace(shift))

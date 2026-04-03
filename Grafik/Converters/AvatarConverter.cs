@@ -3,9 +3,9 @@ using Microsoft.Maui.Controls;
 
 namespace Grafik.Converters;
 
-/// <summary>
+
 /// Генерирует инициалы из полного имени (Фамилия Имя -> ФИ)
-/// </summary>
+
 public class NameToInitialsConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -35,9 +35,9 @@ public class NameToInitialsConverter : IValueConverter
     }
 }
 
-/// <summary>
+
 /// Генерирует цвет аватарки на основе имени (стабильный hash)
-/// </summary>
+
 public class NameToColorConverter : IValueConverter
 {
     private static readonly Color[] AvatarColors = new[]

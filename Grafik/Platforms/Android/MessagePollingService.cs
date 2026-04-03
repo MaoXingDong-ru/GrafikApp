@@ -19,6 +19,18 @@ public class MessagePollingService : Android.App.Service
     private const string CHANNEL_ID = "polling_service_channel";
     private bool _isFirstPoll = true;
 
+
+    // Интервал опроса когда приложение на переднем плане.
+    // 15 сек — ChatPage имеет собственный поллер, здесь нужно только для уведомлений.
+
+    private const int ForegroundDelayMs = 15_000;
+
+
+    // Интервал опроса когда приложение свёрнуто.
+    // 60 сек — экономия трафика в фоне.
+
+    private const int BackgroundDelayMs = 60_000;
+
     public override IBinder? OnBind(Intent? intent) => null;
 
     public override void OnCreate()
@@ -89,7 +101,7 @@ public class MessagePollingService : Android.App.Service
         {
             try
             {
-                int delayMs = App.IsAppInForeground ? 3_000 : 10_000;
+                int delayMs = App.IsAppInForeground ? ForegroundDelayMs : BackgroundDelayMs;
                 await Task.Delay(delayMs, token);
 
                 if (_firebaseService == null)
@@ -116,6 +128,7 @@ public class MessagePollingService : Android.App.Service
                         if (!string.IsNullOrEmpty(msg.FirebaseKey))
                             await _firebaseService.MarkMessageAsReadAsync(msg.FirebaseKey);
 
+                        // Пропускаем уведомление если чат открыт — там есть PollMessagesAsync
                         if (App.IsAppInForeground && App.IsChatPageActive)
                         {
                             System.Diagnostics.Debug.WriteLine(
@@ -152,7 +165,7 @@ public class MessagePollingService : Android.App.Service
             {
                 System.Diagnostics.Debug.WriteLine(
                     $"[MessagePollingService] Ошибка: {ex.Message}");
-                try { await Task.Delay(15_000, token); } catch { break; }
+                try { await Task.Delay(30_000, token); } catch { break; }
             }
         }
 
@@ -164,11 +177,10 @@ public class MessagePollingService : Android.App.Service
         if (Build.VERSION.SdkInt < BuildVersionCodes.O)
             return;
 
-        // Low вместо None — сервис не будет убит системой
         var channel = new NotificationChannel(
             CHANNEL_ID,
             "Синхронизация",
-            NotificationImportance.Low) // ⚠️ Low, не None — иначе сервис может быть убит
+            NotificationImportance.Low)
         {
             Description = "Фоновая синхронизация сообщений"
         };
@@ -193,13 +205,13 @@ public class MessagePollingService : Android.App.Service
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
             .SetContentTitle("Grafik")
-            .SetContentText("Синхронизация") // Короткий текст
+            .SetContentText("Синхронизация")
             .SetSmallIcon(Android.Resource.Drawable.IcMenuInfoDetails)
             .SetOngoing(true)
             .SetContentIntent(pendingIntent)
-            .SetPriority(NotificationCompat.PriorityMin) // Минимальный приоритет
+            .SetPriority(NotificationCompat.PriorityMin)
             .SetCategory(Notification.CategoryService)
-            .SetVisibility((int)NotificationVisibility.Secret) // Скрыть на lock screen
+            .SetVisibility((int)NotificationVisibility.Secret)
             .SetSilent(true)
             .Build();
     }

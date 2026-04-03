@@ -4,9 +4,9 @@ using System.Text.Json.Serialization;
 
 namespace GrafikShared.Models;
 
-/// <summary>
+
 /// Расписание на месяц для синхронизации через Firebase
-/// </summary>
+
 public class SharedSchedule
 {
     [JsonPropertyName("year")]
@@ -37,9 +37,9 @@ public class SharedSchedule
     public string DisplayName => new DateTime(Year, Month, 1).ToString("MMMM yyyy");
 }
 
-/// <summary>
+
 /// Запись расписания
-/// </summary>
+
 public class SharedScheduleEntry
 {
     [JsonPropertyName("employeeName")]

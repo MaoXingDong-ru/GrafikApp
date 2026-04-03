@@ -4,9 +4,13 @@ using GrafikShared.Services;
 
 namespace Grafik.Services;
 
-/// <summary>
-/// Синглтон для мониторинга соединения с Firebase и синхронизации обменов
-/// </summary>
+
+/// Синглтон для мониторинга соединения с Firebase и синхронизации обменов ///
+/// Бюджет трафика (Firebase Spark: 360 МБ/сутки на всю базу, ~25 пользователей): ///
+///   — Ping (HEAD) раз в 60 сек:       ~200 байт × 1440 = ~0.3 МБ / польз / сутки ///
+///   — Проверка обменов раз в 5 мин:   ~1 КБ    × 288  = ~0.3 МБ / польз / сутки ///
+///   — Итого на 25 пользователей:      ≈ 15 МБ/сутки (4% от лимита) ///
+
 public sealed class FirebaseConnectionMonitor : IDisposable
 {
     private static FirebaseConnectionMonitor? _instance;
@@ -17,6 +21,23 @@ public sealed class FirebaseConnectionMonitor : IDisposable
     private bool _isConnected;
     private bool _isStarted;
 
+
+    // Интервал ping-проверки соединения (индикатор).
+    // 60 сек — достаточно для отображения статуса, не перегружает лимит.
+
+    private static readonly TimeSpan PingInterval = TimeSpan.FromSeconds(60);
+
+
+    // Интервал проверки одобренных обменов.
+    // 5 минут — компромисс между актуальностью и экономией трафика.
+
+    private static readonly TimeSpan SwapCheckInterval = TimeSpan.FromMinutes(5);
+
+
+    // Счётчик тиков для вычисления момента проверки обменов.
+
+    private int _tickCount;
+
     // Не используем статический HttpClient — пересоздаём при каждой проверке,
     // чтобы избежать кеширования разорванного соединения
     private static HttpClient CreatePingClient() => new(new HttpClientHandler
@@ -25,22 +46,23 @@ public sealed class FirebaseConnectionMonitor : IDisposable
         MaxConnectionsPerServer = 1
     })
     {
+        // HEAD-запрос не возвращает тело — минимальный трафик
         Timeout = TimeSpan.FromSeconds(8)
     };
 
-    /// <summary>
-    /// Событие изменения статуса соединения
-    /// </summary>
+
+    // Событие изменения статуса соединения
+
     public event EventHandler<bool>? ConnectionStatusChanged;
 
-    /// <summary>
-    /// Событие при применении нового обмена (для обновления UI)
-    /// </summary>
+
+    // Событие при применении нового обмена (для обновления UI)
+
     public event EventHandler<SwapAppliedEventArgs>? SwapApplied;
 
-    /// <summary>
-    /// Текущий статус соединения
-    /// </summary>
+
+    // Текущий статус соединения
+
     public bool IsConnected => _isConnected;
 
     public static FirebaseConnectionMonitor Instance
@@ -62,9 +84,9 @@ public sealed class FirebaseConnectionMonitor : IDisposable
     {
     }
 
-    /// <summary>
-    /// Запустить мониторинг
-    /// </summary>
+
+    // Запустить мониторинг
+
     public void Start()
     {
         if (_isStarted)
@@ -83,23 +105,26 @@ public sealed class FirebaseConnectionMonitor : IDisposable
             return;
         }
 
+        _tickCount = 0;
         _isStarted = true;
+
+        // Первый тик — сразу проверяем соединение
         _ = PollingTickAsync();
 
         _pollingTimer?.Dispose();
         _pollingTimer = new Timer(
             async _ => await PollingTickAsync(),
             null,
-            TimeSpan.FromSeconds(10),
-            TimeSpan.FromSeconds(10)
+            PingInterval,
+            PingInterval
         );
 
-        Log("🚀 Мониторинг запущен");
+        Log($"🚀 Мониторинг запущен (ping: {PingInterval.TotalSeconds}с, обмены: {SwapCheckInterval.TotalMinutes}мин)");
     }
 
-    /// <summary>
-    /// Остановить мониторинг
-    /// </summary>
+
+    // Остановить мониторинг
+
     public void Stop()
     {
         _pollingTimer?.Dispose();
@@ -108,54 +133,64 @@ public sealed class FirebaseConnectionMonitor : IDisposable
         Log("⏹️ Мониторинг остановлен");
     }
 
-    /// <summary>
-    /// Перезапустить мониторинг (при смене URL)
-    /// </summary>
+
+    // Перезапустить мониторинг (при смене URL)
+
     public void Restart()
     {
         Stop();
         Start();
     }
 
-    /// <summary>
-    /// Приостановить polling (приложение свёрнуто)
-    /// </summary>
+
+    // Приостановить polling (приложение свёрнуто)
+
     public void Pause()
     {
         _pollingTimer?.Change(Timeout.Infinite, Timeout.Infinite);
         Log("⏸️ Мониторинг приостановлен");
     }
 
-    /// <summary>
-    /// Возобновить polling (приложение активно)
-    /// </summary>
+
+    // Возобновить polling (приложение активно)
+
     public void Resume()
     {
         if (_isStarted && _pollingTimer != null)
         {
-            _pollingTimer.Change(TimeSpan.Zero, TimeSpan.FromSeconds(10));
+            _pollingTimer.Change(TimeSpan.Zero, PingInterval);
             Log("▶️ Мониторинг возобновлён");
         }
     }
 
-    /// <summary>
-    /// Один тик polling — проверяем соединение и обмены
-    /// </summary>
+
+    // Один тик: ///
+    //   — каждый тик (60 сек): HEAD-ping для обновления индикатора ///
+    //   — каждые N тиков (5 мин): дополнительно проверяем одобренные обмены ///
+
     private async Task PollingTickAsync()
     {
+        _tickCount++;
+
         var connected = await CheckConnectionAsync();
 
-        if (connected)
+        if (!connected)
+            return;
+
+        // Вычисляем сколько тиков соответствует интервалу проверки обменов
+        var ticksPerSwapCheck = (int)(SwapCheckInterval.TotalSeconds / PingInterval.TotalSeconds);
+
+        if (_tickCount % ticksPerSwapCheck == 0)
         {
+            Log("🔄 Проверка одобренных обменов...");
             await CheckAndApplyApprovedSwapsAsync();
         }
     }
 
-    /// <summary>
-    /// Проверить соединение прямым HTTP-запросом к узлу /messages.json.
-    /// Пингуем тот же узел, к которому есть доступ по правилам Firebase.
-    /// Каждый раз создаём новый HttpClient, чтобы не кешировать разорванное соединение.
-    /// </summary>
+
+    // Проверить соединение HEAD-запросом — минимальный трафик (нет тела ответа).
+    // Каждый раз создаём новый HttpClient, чтобы не кешировать разорванное соединение.
+
     public async Task<bool> CheckConnectionAsync()
     {
         var currentUrl = Preferences.Get("FirebaseUrl", string.Empty).TrimEnd('/');
@@ -174,14 +209,15 @@ public sealed class FirebaseConnectionMonitor : IDisposable
 
         try
         {
-            // Пингуем /messages.json?shallow=true — лёгкий запрос к доступному узлу.
-            // shallow=true возвращает только ключи, без тела сообщений.
+            // GET к /messages.json,
+            // трафик ~500 байт при GET?shallow=true
             var url = $"{_databaseUrl}/messages.json?shallow=true";
             Log($"🔌 Ping: {url}");
 
             using var client = CreatePingClient();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
-            var response = await client.GetAsync(url, cts.Token);
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            var response = await client.SendAsync(request, cts.Token);
 
             if (response.IsSuccessStatusCode)
             {
@@ -216,9 +252,9 @@ public sealed class FirebaseConnectionMonitor : IDisposable
 
     #region Swap Sync
 
-    /// <summary>
-    /// Проверить и применить все одобренные обмены
-    /// </summary>
+
+    // Проверить и применить все одобренные обмены
+
     public async Task CheckAndApplyApprovedSwapsAsync()
     {
         try
@@ -358,9 +394,9 @@ public sealed class FirebaseConnectionMonitor : IDisposable
     }
 }
 
-/// <summary>
+
 /// Аргументы события применения обмена
-/// </summary>
+
 public class SwapAppliedEventArgs : EventArgs
 {
     public ShiftSwapRequest Swap { get; }

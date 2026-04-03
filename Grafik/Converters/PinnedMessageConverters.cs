@@ -4,9 +4,9 @@ using Microsoft.Maui.Controls;
 
 namespace Grafik.Converters;
 
-/// <summary>
+
 /// Конвертер для цвета фона закреплённого сообщения
-/// </summary>
+
 public class PinnedBackgroundConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -25,9 +25,9 @@ public class PinnedBackgroundConverter : IValueConverter
     }
 }
 
-/// <summary>
+
 /// Конвертер для цвета кнопки закрепления
-/// </summary>
+
 public class PinButtonColorConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -45,9 +45,9 @@ public class PinButtonColorConverter : IValueConverter
     }
 }
 
-/// <summary>
+
 /// Конвертер Base64-строки в ImageSource для отображения изображений в чате
-/// </summary>
+
 public class Base64ToImageSourceConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)

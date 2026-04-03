@@ -3,9 +3,9 @@ using GrafikShared.Services;
 
 namespace GrafikAdmin.Services;
 
-/// <summary>
+
 /// Синглтон для мониторинга соединения с Firebase и обновления состояний
-/// </summary>
+
 public sealed class FirebaseConnectionMonitor : IDisposable
 {
     private static FirebaseConnectionMonitor? _instance;
@@ -26,24 +26,24 @@ public sealed class FirebaseConnectionMonitor : IDisposable
         Timeout = TimeSpan.FromSeconds(8)
     };
 
-    /// <summary>
-    /// Событие изменения статуса соединения
-    /// </summary>
+
+    // Событие изменения статуса соединения
+
     public event EventHandler<bool>? ConnectionStatusChanged;
 
-    /// <summary>
-    /// Событие обновления счётчика ожидающих запросов
-    /// </summary>
+
+    // Событие обновления счётчика ожидающих запросов
+
     public event EventHandler<int>? PendingSwapsCountChanged;
 
-    /// <summary>
-    /// Текущий статус соединения
-    /// </summary>
+
+    // Текущий статус соединения
+
     public bool IsConnected => _isConnected;
 
-    /// <summary>
-    /// Текущее количество ожидающих запросов
-    /// </summary>
+
+    // Текущее количество ожидающих запросов
+
     public int PendingSwapsCount { get; private set; }
 
     public static FirebaseConnectionMonitor Instance
@@ -65,9 +65,9 @@ public sealed class FirebaseConnectionMonitor : IDisposable
     {
     }
 
-    /// <summary>
-    /// Запустить мониторинг
-    /// </summary>
+
+    // Запустить мониторинг
+
     public void Start()
     {
         if (_isStarted)
@@ -100,9 +100,9 @@ public sealed class FirebaseConnectionMonitor : IDisposable
         Log("🚀 Мониторинг запущен (интервал: 10 сек)");
     }
 
-    /// <summary>
-    /// Остановить мониторинг
-    /// </summary>
+
+    // Остановить мониторинг
+
     public void Stop()
     {
         _pollingTimer?.Dispose();
@@ -111,27 +111,27 @@ public sealed class FirebaseConnectionMonitor : IDisposable
         Log("⏹️ Мониторинг остановлен");
     }
 
-    /// <summary>
-    /// Перезапустить мониторинг (при смене URL)
-    /// </summary>
+
+    // Перезапустить мониторинг (при смене URL)
+
     public void Restart()
     {
         Stop();
         Start();
     }
 
-    /// <summary>
-    /// Приостановить polling (приложение свёрнуто)
-    /// </summary>
+
+    // Приостановить polling (приложение свёрнуто)
+
     public void Pause()
     {
         _pollingTimer?.Change(Timeout.Infinite, Timeout.Infinite);
         Log("⏸️ Мониторинг приостановлен");
     }
 
-    /// <summary>
-    /// Возобновить polling (приложение активно)
-    /// </summary>
+
+    // Возобновить polling (приложение активно)
+
     public void Resume()
     {
         if (_isStarted && _pollingTimer != null)
@@ -141,9 +141,9 @@ public sealed class FirebaseConnectionMonitor : IDisposable
         }
     }
 
-    /// <summary>
-    /// Один тик polling — проверяем соединение и обновляем все состояния
-    /// </summary>
+
+    // Один тик polling — проверяем соединение и обновляем все состояния
+
     private async Task PollingTickAsync()
     {
         var connected = await CheckConnectionAsync();
@@ -154,11 +154,11 @@ public sealed class FirebaseConnectionMonitor : IDisposable
         }
     }
 
-    /// <summary>
-    /// Проверить соединение прямым HTTP-запросом к узлу /swapRequests.json.
-    /// Пингуем тот же узел, к которому есть доступ по правилам Firebase.
-    /// Каждый раз создаём новый HttpClient, чтобы не кешировать разорванное соединение.
-    /// </summary>
+
+    // Проверить соединение прямым HTTP-запросом к узлу /swapRequests.json.
+    // Пингуем тот же узел, к которому есть доступ по правилам Firebase.
+    // Каждый раз создаём новый HttpClient, чтобы не кешировать разорванное соединение.
+
     public async Task<bool> CheckConnectionAsync()
     {
         var currentUrl = Preferences.Get("FirebaseUrl", string.Empty).TrimEnd('/');
@@ -217,9 +217,9 @@ public sealed class FirebaseConnectionMonitor : IDisposable
         }
     }
 
-    /// <summary>
-    /// Обновить счётчик ожидающих запросов на обмен
-    /// </summary>
+
+    // Обновить счётчик ожидающих запросов на обмен
+
     private async Task UpdatePendingSwapsCountAsync()
     {
         try

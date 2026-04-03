@@ -44,9 +44,9 @@ namespace Grafik
             }
         }
 
-        /// <summary>
-        /// Создаёт каналы уведомлений для Android 8.0+
-        /// </summary>
+    
+        // Создаёт каналы уведомлений для Android 8.0+
+    
         private void CreateNotificationChannels()
         {
             if (Build.VERSION.SdkInt < BuildVersionCodes.O)
@@ -95,9 +95,9 @@ namespace Grafik
             }
         }
 
-        /// <summary>
-        /// Запрашивает разрешение POST_NOTIFICATIONS для Android 13+
-        /// </summary>
+    
+        // Запрашивает разрешение POST_NOTIFICATIONS для Android 13+
+    
         private void RequestNotificationPermissions()
         {
             if (Build.VERSION.SdkInt >= BuildVersionCodes.Tiramisu)
@@ -116,9 +116,9 @@ namespace Grafik
             }
         }
 
-        /// <summary>
-        /// Обработка результата запроса разрешений
-        /// </summary>
+    
+        // Обработка результата запроса разрешений
+    
         public override void OnRequestPermissionsResult(int requestCode, string[] permissions, Permission[] grantResults)
         {
             base.OnRequestPermissionsResult(requestCode, permissions, grantResults);

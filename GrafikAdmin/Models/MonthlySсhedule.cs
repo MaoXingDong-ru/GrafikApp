@@ -3,9 +3,9 @@ using GrafikShared.Models;
 
 namespace GrafikAdmin.Models;
 
-/// <summary>
+
 /// Расписание на месяц
-/// </summary>
+
 public class MonthlySchedule
 {
     [JsonPropertyName("year")]
@@ -36,9 +36,9 @@ public class MonthlySchedule
     public string FileName => $"schedule_{Year}_{Month:D2}.json";
 }
 
-/// <summary>
+
 /// Запись расписания для конкретного сотрудника на конкретный день
-/// </summary>
+
 public class ScheduleEntry
 {
     [JsonPropertyName("employeeName")]
@@ -57,21 +57,23 @@ public class ScheduleEntry
     public string Notes { get; set; } = string.Empty;
 }
 
-/// <summary>
+
 /// Тип смены
-/// </summary>
+
 public enum ShiftType
 {
     DayOff = 0,
     Day = 1,
     Night = 2,
+    SecondLineDay = 3,
     Vacation = 4,
-    SickLeave = 5
+    SickLeave = 5,
+    SecondLineNight = 6
 }
 
-/// <summary>
+
 /// Расширения для ShiftType
-/// </summary>
+
 public static class ShiftTypeExtensions
 {
     public static string ToDisplayString(this ShiftType shiftType) => shiftType switch
@@ -79,6 +81,8 @@ public static class ShiftTypeExtensions
         ShiftType.DayOff => "Выходной",
         ShiftType.Day => "Дневная",
         ShiftType.Night => "Ночная",
+        ShiftType.SecondLineDay => "2 линия (день)",
+        ShiftType.SecondLineNight => "2 линия (ночь)",
         ShiftType.Vacation => "Отпуск",
         ShiftType.SickLeave => "Больничный",
         _ => "—"
@@ -89,6 +93,8 @@ public static class ShiftTypeExtensions
         ShiftType.DayOff => "В",
         ShiftType.Day => "Д",
         ShiftType.Night => "Н",
+        ShiftType.SecondLineDay => "2Д",
+        ShiftType.SecondLineNight => "2Н",
         ShiftType.Vacation => "ОТП",
         ShiftType.SickLeave => "Б/Л",
         _ => ""
@@ -98,9 +104,17 @@ public static class ShiftTypeExtensions
     {
         ShiftType.Day => Color.FromArgb("#FF8C00"),
         ShiftType.Night => Color.FromArgb("#00008B"),
+        ShiftType.SecondLineDay => Color.FromArgb("#E65100"),
+        ShiftType.SecondLineNight => Color.FromArgb("#1A237E"),
         ShiftType.Vacation => Color.FromArgb("#228B22"),
         ShiftType.SickLeave => Color.FromArgb("#DC143C"),
         ShiftType.DayOff => Colors.Black,
         _ => Colors.Black
     };
+
+
+    // Является ли смена типом "2 линия" (сотрудник первой линии работает на второй)
+
+    public static bool IsSecondLineShift(this ShiftType shiftType) =>
+        shiftType == ShiftType.SecondLineDay || shiftType == ShiftType.SecondLineNight;
 }

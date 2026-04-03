@@ -3,14 +3,14 @@ using GrafikAdmin.Models;
 
 namespace GrafikAdmin.Services;
 
-/// <summary>
+
 /// Информация о расписании для списка
-/// </summary>
+
 public record ScheduleInfo(int Year, int Month, string DisplayName, DateTime CreatedAt);
 
-/// <summary>
+
 /// Сервис хранения расписаний (максимум 3 месяца)
-/// </summary>
+
 public class ScheduleStorageService
 {
     private const int MaxStoredMonths = 3;

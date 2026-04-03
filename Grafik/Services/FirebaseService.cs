@@ -24,27 +24,27 @@ namespace Grafik.Services
         [JsonPropertyName("id")]
         public string Id { get; set; } = Guid.NewGuid().ToString();
 
-        /// <summary>
-        /// Если это файл/изображение — содержимое в Base64
-        /// </summary>
+    
+        // Если это файл/изображение — содержимое в Base64
+    
         [JsonPropertyName("fileData")]
         public string? FileData { get; set; }
 
-        /// <summary>
-        /// Имя файла (если это сообщение с файлом/изображением)
-        /// </summary>
+    
+        // Имя файла (если это сообщение с файлом/изображением)
+    
         [JsonPropertyName("fileName")]
         public string? FileName { get; set; }
 
-        /// <summary>
-        /// Размер файла в байтах
-        /// </summary>
+    
+        // Размер файла в байтах
+    
         [JsonPropertyName("fileSize")]
         public long FileSize { get; set; }
 
-        /// <summary>
-        /// Тип: "text", "file" или "image"
-        /// </summary>
+    
+        // Тип: "text", "file" или "image"
+    
         [JsonPropertyName("type")]
         public string Type { get; set; } = "text";
 
@@ -52,10 +52,10 @@ namespace Grafik.Services
         [JsonPropertyName("isPinned")]
         public bool IsPinned { get; set; } = false;
 
-        /// <summary>
-        /// Словарь устройств, которые уже прочитали это сообщение.
-        /// Ключ — deviceId, значение — true.
-        /// </summary>
+    
+        // Словарь устройств, которые уже прочитали это сообщение.
+        // Ключ — deviceId, значение — true.
+    
         [JsonPropertyName("readBy")]
         public Dictionary<string, bool>? ReadBy { get; set; }
 
@@ -77,10 +77,10 @@ namespace Grafik.Services
         [JsonPropertyName("isAdminSchedulePinned")]
         public bool IsAdminSchedulePinned { get; set; } = false;
 
-        /// <summary>
-        /// Ключ записи в Firebase (например -Oi1-wus00QacrG69a_4).
-        /// Заполняется при чтении из базы, НЕ сериализуется при отправке.
-        /// </summary>
+    
+        // Ключ записи в Firebase (например -Oi1-wus00QacrG69a_4).
+        // Заполняется при чтении из базы, НЕ сериализуется при отправке.
+    
         [JsonIgnore]
         public string FirebaseKey { get; set; } = string.Empty;
     }
@@ -90,24 +90,24 @@ namespace Grafik.Services
         private readonly string _databaseUrl;
         private readonly HttpClient _httpClient;
 
-        /// <summary>
-        /// Количество дней для хранения сообщений
-        /// </summary>
+    
+        // Количество дней для хранения сообщений
+    
         private const int MessageRetentionDays = 30;
 
-        /// <summary>
-        /// Максимальный размер файла в байтах (5 MB)
-        /// </summary>
+    
+        // Максимальный размер файла в байтах (5 MB)
+    
         private const long MaxFileSizeBytes = 5 * 1024 * 1024;
 
-        /// <summary>
-        /// Максимальный размер изображения в байтах (3 MB)
-        /// </summary>
+    
+        // Максимальный размер изображения в байтах (3 MB)
+    
         private const long MaxImageSizeBytes = 3 * 1024 * 1024;
 
-        /// <summary>
-        /// Поддерживаемые расширения изображений
-        /// </summary>
+    
+        // Поддерживаемые расширения изображений
+    
         private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
             ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"
@@ -136,10 +136,10 @@ namespace Grafik.Services
             Console.WriteLine(logMsg);
         }
 
-        /// <summary>
-        /// Получить уникальный идентификатор устройства.
-        /// Генерируется один раз и сохраняется в Preferences.
-        /// </summary>
+    
+        // Получить уникальный идентификатор устройства.
+        // Генерируется один раз и сохраняется в Preferences.
+    
         public static string GetDeviceId()
         {
             const string key = "UniqueDeviceId";
@@ -155,18 +155,18 @@ namespace Grafik.Services
             return deviceId;
         }
 
-        /// <summary>
-        /// Проверяет, является ли файл изображением по расширению
-        /// </summary>
+    
+        // Проверяет, является ли файл изображением по расширению
+    
         public static bool IsImageFile(string filePath)
         {
             var ext = Path.GetExtension(filePath);
             return !string.IsNullOrEmpty(ext) && ImageExtensions.Contains(ext);
         }
 
-        /// <summary>
-        /// Отправить текстовое сообщение в Firebase
-        /// </summary>
+    
+        // Отправить текстовое сообщение в Firebase
+    
         public async Task<bool> SendMessageAsync(string sender, string messageText)
         {
             try
@@ -236,9 +236,9 @@ namespace Grafik.Services
             }
         }
 
-        /// <summary>
-        /// ✅ Отправить ответ на сообщение
-        /// </summary>
+    
+        // ✅ Отправить ответ на сообщение
+    
         public async Task<bool> SendReplyMessageAsync(string sender, string messageText, string replyToId, string replyToText, string replyToSender)
         {
             try
@@ -281,9 +281,9 @@ namespace Grafik.Services
             }
         }
 
-        /// <summary>
-        /// ✅ Отправить файл в Firebase (как Base64) с автозакреплением для админа
-        /// </summary>
+    
+        // ✅ Отправить файл в Firebase (как Base64) с автозакреплением для админа
+    
         public async Task<bool> SendFileMessageAsync(string sender, string filePath, bool autoPinForAdmin = false)
         {
             try
@@ -364,9 +364,9 @@ namespace Grafik.Services
             }
         }
 
-        /// <summary>
-        /// Отправить изображение в Firebase (как Base64)
-        /// </summary>
+    
+        // Отправить изображение в Firebase (как Base64)
+    
         public async Task<bool> SendImageMessageAsync(string sender, string imagePath)
         {
             try
@@ -438,10 +438,10 @@ namespace Grafik.Services
             }
         }
 
-        /// <summary>
-        /// Извлечь файл из сообщения и сохранить локально
-        /// Возвращает путь к сохраненному файлу
-        /// </summary>
+    
+        // Извлечь файл из сообщения и сохранить локально
+        // Возвращает путь к сохраненному файлу
+    
         public async Task<string?> ExtractFileAsync(FirebaseMessage message)
         {
             try
@@ -475,9 +475,9 @@ namespace Grafik.Services
             }
         }
 
-        /// <summary>
-        /// Получить все сообщения из Firebase (с ключами Firebase)
-        /// </summary>
+    
+        // Получить все сообщения из Firebase (с ключами Firebase)
+    
         public async Task<List<FirebaseMessage>> GetMessagesAsync()
         {
             try
@@ -538,19 +538,19 @@ namespace Grafik.Services
             }
         }
 
-        /// <summary>
-        /// Получить сообщения после определённой временной метки (для полинга)
-        /// </summary>
+    
+        // Получить сообщения после определённой временной метки (для полинга)
+    
         public async Task<List<FirebaseMessage>> GetMessagesAfterAsync(DateTime since)
         {
             var allMessages = await GetMessagesAsync();
             return allMessages.Where(m => m.Timestamp > since).ToList();
         }
 
-        /// <summary>
-        /// Получить непрочитанные сообщения для текущего устройства.
-        /// Возвращает сообщения, в которых readBy не содержит текущий deviceId.
-        /// </summary>
+    
+        // Получить непрочитанные сообщения для текущего устройства.
+        // Возвращает сообщения, в которых readBy не содержит текущий deviceId.
+    
         public async Task<List<FirebaseMessage>> GetUnreadMessagesAsync()
         {
             var deviceId = GetDeviceId();
@@ -561,9 +561,9 @@ namespace Grafik.Services
                 .ToList();
         }
 
-        /// <summary>
-        /// Пометить сообщение как прочитанное на текущем устройстве (PATCH readBy.{deviceId} = true)
-        /// </summary>
+    
+        // Пометить сообщение как прочитанное на текущем устройстве (PATCH readBy.{deviceId} = true)
+    
         public async Task<bool> MarkMessageAsReadAsync(string firebaseKey)
         {
             try
@@ -591,9 +591,9 @@ namespace Grafik.Services
             }
         }
 
-        /// <summary>
-        /// Пометить несколько сообщений как прочитанные (пакетно)
-        /// </summary>
+    
+        // Пометить несколько сообщений как прочитанные (пакетно)
+    
         public async Task MarkMessagesAsReadAsync(IEnumerable<FirebaseMessage> messages)
         {
             foreach (var msg in messages)
@@ -605,9 +605,9 @@ namespace Grafik.Services
             }
         }
 
-        /// <summary>
-        /// Удалить сообщение по ключу Firebase (например -Oi1-wus00QacrG69a_4)
-        /// </summary>
+    
+        // Удалить сообщение по ключу Firebase (например -Oi1-wus00QacrG69a_4)
+    
         public async Task<bool> DeleteMessageByFirebaseKeyAsync(string firebaseKey)
         {
             try
@@ -636,9 +636,9 @@ namespace Grafik.Services
             }
         }
 
-        /// <summary>
-        /// Удалить сообщение по внутреннему ID (находит ключ Firebase, затем удаляет)
-        /// </summary>
+    
+        // Удалить сообщение по внутреннему ID (находит ключ Firebase, затем удаляет)
+    
         public async Task<bool> DeleteMessageAsync(string messageId)
         {
             try
@@ -662,11 +662,11 @@ namespace Grafik.Services
             }
         }
 
-        /// <summary>
-        /// Удалить все старые сообщения (старше N дней).
-        /// Не удаляет закреплённые сообщения.
-        /// Вызывается автоматически при инициализации сервиса.
-        /// </summary>
+    
+        // Удалить все старые сообщения (старше N дней).
+        // Не удаляет закреплённые сообщения.
+        // Вызывается автоматически при инициализации сервиса.
+    
         public async Task<int> CleanupOldMessagesAsync()
         {
             try
@@ -718,9 +718,9 @@ namespace Grafik.Services
             }
         }
 
-        /// <summary>
-        /// Очистить все сообщения
-        /// </summary>
+    
+        // Очистить все сообщения
+    
         public async Task<bool> ClearAllMessagesAsync()
         {
             try
@@ -737,9 +737,9 @@ namespace Grafik.Services
             }
         }
 
-        /// <summary>
-        /// Обновить сообщение (например, статус закрепления)
-        /// </summary>
+    
+        // Обновить сообщение (например, статус закрепления)
+    
         public async Task<bool> UpdateMessageAsync(FirebaseMessage message)
         {
             try
@@ -776,9 +776,9 @@ namespace Grafik.Services
             }
         }
 
-        /// <summary>
-        /// Обновить статус закрепления сообщения (PATCH для частичного обновления)
-        /// </summary>
+    
+        // Обновить статус закрепления сообщения (PATCH для частичного обновления)
+    
         public async Task<bool> UpdateMessagePinnedStatusAsync(FirebaseMessage message)
         {
             try
@@ -841,9 +841,9 @@ namespace Grafik.Services
             }
         }
 
-        /// <summary>
-        /// Получить сырые данные сообщений (с ключами Firebase)
-        /// </summary>
+    
+        // Получить сырые данные сообщений (с ключами Firebase)
+    
         private async Task<Dictionary<string, JsonElement>> GetRawMessagesDataAsync()
         {
             try

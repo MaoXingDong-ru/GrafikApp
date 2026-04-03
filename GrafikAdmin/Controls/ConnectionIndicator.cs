@@ -3,9 +3,9 @@ using GrafikAdmin.Services;
 
 namespace GrafikAdmin.Controls;
 
-/// <summary>
+
 /// Индикатор соединения с Firebase (кружок)
-/// </summary>
+
 public class ConnectionIndicator : Frame
 {
     public ConnectionIndicator()

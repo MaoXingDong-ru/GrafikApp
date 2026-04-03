@@ -41,39 +41,9 @@
 
 	<ItemGroup>
 		<PackageReference Include="ClosedXML" Version="0.105.0" />
+		<PackageReference Include="CommunityToolkit.Maui" Version="12.0.0" />
 		<PackageReference Include="Microsoft.Maui.Controls" Version="9.0.100" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.8" />
-	</ItemGroup>
-
-	<!-- Явная регистрация XAML страниц -->
-	<ItemGroup>
-		<MauiXaml Update="MainPage.xaml">
-			<Generator>MSBuild:Compile</Generator>
-		</MauiXaml>
-		<MauiXaml Update="ScheduleEditorPage.xaml">
-			<Generator>MSBuild:Compile</Generator>
-		</MauiXaml>
-		<MauiXaml Update="SettingsPage.xaml">
-			<Generator>MSBuild:Compile</Generator>
-		</MauiXaml>
-		<MauiXaml Update="EmployeesPage.xaml">
-			<Generator>MSBuild:Compile</Generator>
-		</MauiXaml>
-		<MauiXaml Update="SwapRequestsPage.xaml">
-		  <Generator>MSBuild:Compile</Generator>
-		</MauiXaml>
-	</ItemGroup>
-
-	<ItemGroup>
-		<Compile Update="ScheduleEditorPage.xaml.cs">
-			<DependentUpon>ScheduleEditorPage.xaml</DependentUpon>
-		</Compile>
-		<Compile Update="SettingsPage.xaml.cs">
-			<DependentUpon>SettingsPage.xaml</DependentUpon>
-		</Compile>
-		<Compile Update="EmployeesPage.xaml.cs">
-			<DependentUpon>EmployeesPage.xaml</DependentUpon>
-		</Compile>
 	</ItemGroup>
 
 	<ItemGroup>

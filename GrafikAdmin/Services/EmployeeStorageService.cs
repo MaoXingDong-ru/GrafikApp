@@ -2,9 +2,9 @@
 
 namespace GrafikAdmin.Services;
 
-/// <summary>
+
 /// Сервис хранения постоянного списка сотрудников
-/// </summary>
+
 public class EmployeeStorageService
 {
     private const string EmployeesFileName = "employees_list.json";
@@ -15,9 +15,9 @@ public class EmployeeStorageService
         _filePath = Path.Combine(FileSystem.AppDataDirectory, EmployeesFileName);
     }
 
-    /// <summary>
-    /// Загрузить список сотрудников
-    /// </summary>
+
+    // Загрузить список сотрудников
+
     public async Task<EmployeeList> LoadAsync()
     {
         if (!File.Exists(_filePath))
@@ -34,9 +34,9 @@ public class EmployeeStorageService
         }
     }
 
-    /// <summary>
-    /// Сохранить список сотрудников
-    /// </summary>
+
+    // Сохранить список сотрудников
+
     public async Task SaveAsync(EmployeeList employees)
     {
         employees.LastModifiedAt = DateTime.UtcNow;
@@ -44,9 +44,9 @@ public class EmployeeStorageService
         await File.WriteAllTextAsync(_filePath, json);
     }
 
-    /// <summary>
-    /// Добавить сотрудника
-    /// </summary>
+
+    // Добавить сотрудника
+
     public async Task<bool> AddEmployeeAsync(string name, bool isSecondLine)
     {
         var list = await LoadAsync();
@@ -67,9 +67,9 @@ public class EmployeeStorageService
         return true;
     }
 
-    /// <summary>
-    /// Удалить сотрудника
-    /// </summary>
+
+    // Удалить сотрудника
+
     public async Task<bool> RemoveEmployeeAsync(string name)
     {
         var list = await LoadAsync();
@@ -82,9 +82,9 @@ public class EmployeeStorageService
         return removed;
     }
 
-    /// <summary>
-    /// Переместить сотрудника между линиями
-    /// </summary>
+
+    // Переместить сотрудника между линиями
+
     public async Task<bool> MoveEmployeeAsync(string name, bool toSecondLine)
     {
         var list = await LoadAsync();
@@ -111,9 +111,9 @@ public class EmployeeStorageService
         return false;
     }
 
-    /// <summary>
-    /// Получить всех сотрудников (обе линии)
-    /// </summary>
+
+    // Получить всех сотрудников (обе линии)
+
     public async Task<List<string>> GetAllEmployeesAsync()
     {
         var list = await LoadAsync();
@@ -121,22 +121,22 @@ public class EmployeeStorageService
     }
 }
 
-/// <summary>
+
 /// Модель списка сотрудников
-/// </summary>
+
 public class EmployeeList
 {
     public List<string> FirstLine { get; set; } = [];
     public List<string> SecondLine { get; set; } = [];
     public DateTime LastModifiedAt { get; set; } = DateTime.UtcNow;
 
-    /// <summary>
-    /// Все сотрудники (обе линии)
-    /// </summary>
+
+    // Все сотрудники (обе линии)
+
     public List<string> All => [.. FirstLine, .. SecondLine];
 
-    /// <summary>
-    /// Общее количество сотрудников
-    /// </summary>
+
+    // Общее количество сотрудников
+
     public int TotalCount => FirstLine.Count + SecondLine.Count;
 }

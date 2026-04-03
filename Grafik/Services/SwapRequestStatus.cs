@@ -3,9 +3,9 @@ using System.Text.Json.Serialization;
 
 namespace Grafik.Services;
 
-/// <summary>
+
 /// Статус запроса на обмен сменами
-/// </summary>
+
 public enum SwapRequestStatus
 {
     Pending,    // Ожидает одобрения
@@ -13,6 +13,6 @@ public enum SwapRequestStatus
     Denied      // Отклонено админом
 }
 
-/// <summary>
+
 /// Запрос на обмен сменами между сотрудниками
-/// </summary>
+

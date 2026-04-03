@@ -2,9 +2,9 @@
 
 namespace Grafik.Converters;
 
-/// <summary>
+
 /// Конвертер: возвращает true, если строка не пустая
-/// </summary>
+
 public class StringNotEmptyConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)

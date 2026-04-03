@@ -26,20 +26,20 @@ namespace Grafik.Services
         private const string CHAT_CHANNEL_NAME = "Сообщения чата";
         private const string CHAT_CHANNEL_DESCRIPTION = "Уведомления о новых сообщениях в чате";
 
-        /// <summary>
-        /// Ключ в Preferences для хранения списка запланированных notification ID
-        /// </summary>
+    
+        // Ключ в Preferences для хранения списка запланированных notification ID
+    
         private const string SCHEDULED_IDS_KEY = "ScheduledNotificationIds";
 
-        /// <summary>
-        /// Ключ для хранения имени сотрудника, для которого запланированы уведомления
-        /// </summary>
+    
+        // Ключ для хранения имени сотрудника, для которого запланированы уведомления
+    
         private const string SCHEDULED_EMPLOYEE_KEY = "ScheduledNotificationEmployee";
 
 #if ANDROID
-        /// <summary>
-        /// Проверяет, разрешены ли уведомления на устройстве
-        /// </summary>
+    
+        // Проверяет, разрешены ли уведомления на устройстве
+    
         public static bool AreNotificationsEnabled()
         {
             var context = Android.App.Application.Context;
@@ -84,9 +84,9 @@ namespace Grafik.Services
 
         #region Хранение запланированных ID
 
-        /// <summary>
-        /// Получить список всех сохранённых notification ID
-        /// </summary>
+    
+        // Получить список всех сохранённых notification ID
+    
         private static List<int> GetScheduledIds()
         {
             try
@@ -100,18 +100,18 @@ namespace Grafik.Services
             }
         }
 
-        /// <summary>
-        /// Сохранить список notification ID
-        /// </summary>
+    
+        // Сохранить список notification ID
+    
         private static void SaveScheduledIds(List<int> ids)
         {
             var json = JsonSerializer.Serialize(ids);
             Preferences.Set(SCHEDULED_IDS_KEY, json);
         }
 
-        /// <summary>
-        /// Добавить ID в список запланированных
-        /// </summary>
+    
+        // Добавить ID в список запланированных
+    
         private static void TrackNotificationId(int notificationId)
         {
             var ids = GetScheduledIds();
@@ -122,9 +122,9 @@ namespace Grafik.Services
             }
         }
 
-        /// <summary>
-        /// Очистить список запланированных ID
-        /// </summary>
+    
+        // Очистить список запланированных ID
+    
         private static void ClearTrackedIds()
         {
             SaveScheduledIds([]);
@@ -132,9 +132,9 @@ namespace Grafik.Services
 
         #endregion
 
-        /// <summary>
-        /// Генерация стабильного ID на основе данных смены (не зависит от момента вызова)
-        /// </summary>
+    
+        // Генерация стабильного ID на основе данных смены (не зависит от момента вызова)
+    
         private static int GenerateStableNotificationId(string title, string message, DateTime notifyTime)
         {
             // Округляем время до минуты для стабильности
@@ -143,9 +143,9 @@ namespace Grafik.Services
             return (title + message + roundedTime.Ticks).GetHashCode() & 0x7FFFFFFF;
         }
 
-        /// <summary>
-        /// Показать немедленное уведомление (для новых сообщений в чате)
-        /// </summary>
+    
+        // Показать немедленное уведомление (для новых сообщений в чате)
+    
         public static void ShowInstantNotification(string title, string message, string channelId = CHAT_CHANNEL_ID)
         {
 #if ANDROID
@@ -216,9 +216,9 @@ namespace Grafik.Services
 #endif
         }
 
-        /// <summary>
-        /// Запланировать уведомление на определённое время
-        /// </summary>
+    
+        // Запланировать уведомление на определённое время
+    
         public static void ScheduleNotification(string title, string message, DateTime notifyTime, 
             string channelId = SHIFT_CHANNEL_ID)
         {
@@ -358,9 +358,9 @@ namespace Grafik.Services
         }
 #endif
 
-        /// <summary>
-        /// Запланировать уведомление о смене
-        /// </summary>
+    
+        // Запланировать уведомление о смене
+    
         public static void ScheduleShiftNotification(ShiftEntry entry, ReminderOption reminder)
         {
             if (string.IsNullOrWhiteSpace(entry.Worktime) || string.IsNullOrWhiteSpace(entry.Shift))
@@ -466,9 +466,9 @@ namespace Grafik.Services
                 SHIFT_CHANNEL_ID);
         }
 
-        /// <summary>
-        /// Отменить все запланированные уведомления о сменах
-        /// </summary>
+    
+        // Отменить все запланированные уведомления о сменах
+    
         public static void CancelAllShiftNotifications()
         {
 #if ANDROID
@@ -521,9 +521,9 @@ namespace Grafik.Services
 #endif
         }
 
-        /// <summary>
-        /// Отменить уведомление о конкретной смене
-        /// </summary>
+    
+        // Отменить уведомление о конкретной смене
+    
         public static void CancelShiftNotification(ShiftEntry entry, ReminderOption reminder)
         {
 #if ANDROID
@@ -587,10 +587,10 @@ namespace Grafik.Services
 #endif
         }
 
-        /// <summary>
-        /// Перепланировать все уведомления для конкретного сотрудника.
-        /// Сначала отменяет все старые, затем планирует новые.
-        /// </summary>
+    
+        // Перепланировать все уведомления для конкретного сотрудника.
+        // Сначала отменяет все старые, затем планирует новые.
+    
         public static void RescheduleAllForEmployee(string employeeName, List<ShiftEntry> schedule, ReminderOption reminder)
         {
             System.Diagnostics.Debug.WriteLine($"[NotificationService] 🔄 Перепланирование уведомлений для {employeeName}");
@@ -616,9 +616,9 @@ namespace Grafik.Services
             System.Diagnostics.Debug.WriteLine($"[NotificationService] ✅ Перепланировано {count} уведомлений для {employeeName}");
         }
 
-        /// <summary>
-        /// Получить имя сотрудника, для которого запланированы текущие уведомления
-        /// </summary>
+    
+        // Получить имя сотрудника, для которого запланированы текущие уведомления
+    
         public static string GetScheduledEmployee()
         {
             return Preferences.Get(SCHEDULED_EMPLOYEE_KEY, string.Empty);

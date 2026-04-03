@@ -4,9 +4,9 @@ using GrafikShared.Models;
 
 namespace GrafikShared.Services;
 
-/// <summary>
+
 /// Базовый сервис для работы с Firebase (общий для обоих приложений)
-/// </summary>
+
 public class FirebaseServiceBase
 {
     protected readonly string DatabaseUrl;
@@ -18,9 +18,9 @@ public class FirebaseServiceBase
         HttpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
     }
 
-    /// <summary>
-    /// Получить все сообщения из Firebase
-    /// </summary>
+
+    // Получить все сообщения из Firebase
+
     public virtual async Task<List<FirebaseMessage>> GetMessagesAsync()
     {
         try
@@ -64,9 +64,9 @@ public class FirebaseServiceBase
         }
     }
 
-    /// <summary>
-    /// Отправить текстовое сообщение
-    /// </summary>
+
+    // Отправить текстовое сообщение
+
     public virtual async Task<bool> SendMessageAsync(string sender, string text, string? deviceId = null)
     {
         try
@@ -93,9 +93,9 @@ public class FirebaseServiceBase
         }
     }
 
-    /// <summary>
-    /// Отправить файл в Firebase
-    /// </summary>
+
+    // Отправить файл в Firebase
+
     public virtual async Task<bool> SendFileAsync(string sender, string filePath, string? deviceId = null)
     {
         try

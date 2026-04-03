@@ -76,25 +76,37 @@ public partial class EmployeesPage : ContentPage
         }
     }
 
+    // Обработчики для кнопок Windows
+    private async void OnDeleteEmployeeButtonClicked(object sender, EventArgs e)
+    {
+        if (sender is Button button && button.BindingContext is string employeeName)
+        {
+            await DeleteEmployeeAsync(employeeName);
+        }
+    }
+
+    private async void OnMoveToSecondLineButtonClicked(object sender, EventArgs e)
+    {
+        if (sender is Button button && button.BindingContext is string employeeName)
+        {
+            await MoveEmployeeAsync(employeeName, true);
+        }
+    }
+
+    private async void OnMoveToFirstLineButtonClicked(object sender, EventArgs e)
+    {
+        if (sender is Button button && button.BindingContext is string employeeName)
+        {
+            await MoveEmployeeAsync(employeeName, false);
+        }
+    }
+
+    // Обработчики для SwipeItem (iOS/Android)
     private async void OnDeleteEmployee(object sender, EventArgs e)
     {
         if (sender is SwipeItem swipeItem && swipeItem.BindingContext is string employeeName)
         {
-            bool confirm = await DisplayAlert(
-                "Подтверждение",
-                $"Удалить сотрудника \"{employeeName}\"?",
-                "Да, удалить",
-                "Отмена");
-
-            if (!confirm)
-                return;
-
-            bool success = await _employeeService.RemoveEmployeeAsync(employeeName);
-
-            if (success)
-            {
-                await LoadEmployeesAsync();
-            }
+            await DeleteEmployeeAsync(employeeName);
         }
     }
 
@@ -102,12 +114,7 @@ public partial class EmployeesPage : ContentPage
     {
         if (sender is SwipeItem swipeItem && swipeItem.BindingContext is string employeeName)
         {
-            bool success = await _employeeService.MoveEmployeeAsync(employeeName, toSecondLine: true);
-
-            if (success)
-            {
-                await LoadEmployeesAsync();
-            }
+            await MoveEmployeeAsync(employeeName, true);
         }
     }
 
@@ -115,12 +122,37 @@ public partial class EmployeesPage : ContentPage
     {
         if (sender is SwipeItem swipeItem && swipeItem.BindingContext is string employeeName)
         {
-            bool success = await _employeeService.MoveEmployeeAsync(employeeName, toSecondLine: false);
+            await MoveEmployeeAsync(employeeName, false);
+        }
+    }
 
-            if (success)
-            {
-                await LoadEmployeesAsync();
-            }
+    // Общие методы
+    private async Task DeleteEmployeeAsync(string employeeName)
+    {
+        bool confirm = await DisplayAlert(
+            "Подтверждение",
+            $"Удалить сотрудника \"{employeeName}\"?",
+            "Да, удалить",
+            "Отмена");
+
+        if (!confirm)
+            return;
+
+        bool success = await _employeeService.RemoveEmployeeAsync(employeeName);
+
+        if (success)
+        {
+            await LoadEmployeesAsync();
+        }
+    }
+
+    private async Task MoveEmployeeAsync(string employeeName, bool toSecondLine)
+    {
+        bool success = await _employeeService.MoveEmployeeAsync(employeeName, toSecondLine);
+
+        if (success)
+        {
+            await LoadEmployeesAsync();
         }
     }
 }

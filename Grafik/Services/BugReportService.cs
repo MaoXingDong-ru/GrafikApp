@@ -9,10 +9,10 @@ using System.Threading.Tasks;
 
 namespace Grafik.Services;
 
-/// <summary>
+
 /// Сервис для работы с баг-репортами через Firebase Realtime Database.
 /// Хранит данные в узле /service.
-/// </summary>
+
 public class BugReportService
 {
     private const string FirebaseNode = "service";
@@ -34,9 +34,9 @@ public class BugReportService
         Debug.WriteLine($"[BugReportService] {message}");
     }
 
-    /// <summary>
-    /// Отправить новый баг-репорт / предложение
-    /// </summary>
+
+    // Отправить новый баг-репорт / предложение
+
     public async Task<bool> SendBugReportAsync(BugReport report)
     {
         try
@@ -69,9 +69,9 @@ public class BugReportService
         }
     }
 
-    /// <summary>
-    /// Получить все баг-репорты из Firebase
-    /// </summary>
+
+    // Получить все баг-репорты из Firebase
+
     public async Task<List<BugReport>> GetBugReportsAsync()
     {
         try
@@ -127,9 +127,9 @@ public class BugReportService
         }
     }
 
-    /// <summary>
-    /// Обновить статус и комментарий разработчика одним запросом (PATCH)
-    /// </summary>
+
+    // Обновить статус и комментарий разработчика одним запросом (PATCH)
+
     public async Task<bool> UpdateStatusAndCommentAsync(string firebaseKey, string status, string comment)
     {
         try
@@ -156,9 +156,9 @@ public class BugReportService
         }
     }
 
-    /// <summary>
-    /// Обновить комментарий разработчика (PATCH)
-    /// </summary>
+
+    // Обновить комментарий разработчика (PATCH)
+
     public async Task<bool> UpdateDevCommentAsync(string firebaseKey, string comment)
     {
         try
@@ -180,9 +180,9 @@ public class BugReportService
         }
     }
 
-    /// <summary>
-    /// Обновить статус баг-репорта (PATCH)
-    /// </summary>
+
+    // Обновить статус баг-репорта (PATCH)
+
     public async Task<bool> UpdateStatusAsync(string firebaseKey, string status)
     {
         try
@@ -204,9 +204,9 @@ public class BugReportService
         }
     }
 
-    /// <summary>
-    /// Удалить репорт по ключу Firebase
-    /// </summary>
+
+    // Удалить репорт по ключу Firebase
+
     public async Task<bool> DeleteReportAsync(string firebaseKey)
     {
         try
@@ -233,11 +233,11 @@ public class BugReportService
         }
     }
 
-    /// <summary>
-    /// Автоочистка старых репортов со статусом «resolved» или «rejected»,
-    /// которые старше BugReport.RetentionDays дней.
-    /// Репорты со статусом «open» и «inprogress» НЕ удаляются.
-    /// </summary>
+
+    // Автоочистка старых репортов со статусом «resolved» или «rejected»,
+    // которые старше BugReport.RetentionDays дней.
+    // Репорты со статусом «open» и «inprogress» НЕ удаляются.
+
     public async Task<int> CleanupOldReportsAsync()
     {
         try

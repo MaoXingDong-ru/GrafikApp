@@ -25,9 +25,9 @@ public partial class App : Application
 #endif
     }
 
-    /// <summary>
-    /// Инициализация мониторинга Firebase (один раз)
-    /// </summary>
+
+    // Инициализация мониторинга Firebase (один раз)
+
     public static void InitializeFirebaseMonitor()
     {
         if (_monitorInitialized)

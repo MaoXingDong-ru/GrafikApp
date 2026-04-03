@@ -50,9 +50,9 @@ public partial class ChatPage : ContentPage
         BuildEmojiPanel();
     }
 
-    /// <summary>
-    /// Построить сетку эмодзи в панели
-    /// </summary>
+
+    // Построить сетку эмодзи в панели
+
     private void BuildEmojiPanel()
     {
         EmojiGrid.Children.Clear();
@@ -331,9 +331,9 @@ public partial class ChatPage : ContentPage
         }
     }
 
-    /// <summary>
-    /// ✅ ОБНОВЛЁННЫЙ метод: разделяем закреплённые сообщения на две категории
-    /// </summary>
+
+    // ✅ ОБНОВЛЁННЫЙ метод: разделяем закреплённые сообщения на две категории
+
     private void UpdatePinnedMessages()
     {
         MainThread.BeginInvokeOnMainThread(() =>
@@ -521,9 +521,9 @@ public partial class ChatPage : ContentPage
         }
     }
 
-    /// <summary>
-    /// ✅ Скролл к закреплённому сообщению при клике на превью
-    /// </summary>
+
+    // ✅ Скролл к закреплённому сообщению при клике на превью
+
     private async void OnPinnedMessageClicked(object sender, EventArgs e)
     {
         Debug.WriteLine("[ChatPage] OnPinnedMessageClicked");
@@ -658,7 +658,10 @@ public partial class ChatPage : ContentPage
         {
             try
             {
-                await Task.Delay(2000, cancellationToken);
+                // 15 сек — баланс между актуальностью и трафиком.
+                // При 25 польз. × 46 КБ × 4 раза/мин ≈ 66 МБ/сутки вместо 330 МБ при 2 сек.
+                await Task.Delay(15_000, cancellationToken);
+
                 var newMessages = await _firebaseService.GetMessagesAfterAsync(_lastMessageTime);
 
                 if (newMessages.Count > 0)
@@ -694,9 +697,9 @@ public partial class ChatPage : ContentPage
     }
 }
 
-/// <summary>
+
 /// ViewModel для отображения сообщений в UI
-/// </summary>
+
 public class FirebaseMessageViewModel : INotifyPropertyChanged
 {
     private bool _isHighlighted;
@@ -731,30 +734,30 @@ public class FirebaseMessageViewModel : INotifyPropertyChanged
 
     public string? ImageData => IsImage ? Message.FileData : null;
 
-    /// <summary>
-    /// Моё сообщение? (Sender совпадает с текущим пользователем)
-    /// </summary>
+
+    // Моё сообщение? (Sender совпадает с текущим пользователем)
+
     public bool IsMine => string.Equals(Sender, _currentUserName, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>
-    /// Не моё сообщение (для отображения аватарки и имени)
-    /// </summary>
+
+    // Не моё сообщение (для отображения аватарки и имени)
+
     public bool IsNotMine => !IsMine;
 
-    /// <summary>
-    /// Проверка, является ли отправитель администратором
-    /// </summary>
+
+    // Проверка, является ли отправитель администратором
+
     public bool IsFromAdmin => Sender.Contains("Администратор", StringComparison.OrdinalIgnoreCase) ||
                                Sender.Contains("Admin", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>
-    /// Файл от обычного пользователя (НЕ закреплённый файл расписания от админа)
-    /// </summary>
+
+    // Файл от обычного пользователя (НЕ закреплённый файл расписания от админа)
+
     public bool IsFileButNotAdminSchedule => IsFile && !IsAdminSchedulePinned;
 
-    /// <summary>
-    /// Превью текста для закреплённого сообщения (первая строка, макс 60 символов)
-    /// </summary>
+
+    // Превью текста для закреплённого сообщения (первая строка, макс 60 символов)
+
     public string PinnedPreviewText
     {
         get

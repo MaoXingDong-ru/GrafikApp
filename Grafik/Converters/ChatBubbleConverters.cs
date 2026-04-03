@@ -8,9 +8,9 @@ using Microsoft.Maui.Controls;
 
 namespace Grafik.Converters
 {
-    /// <summary>
-    /// IsMine=true → End (справа), false → Start (слева)
-    /// </summary>
+
+    // IsMine=true → End (справа), false → Start (слева)
+
     public class BoolToAlignmentConverter : IValueConverter
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -24,10 +24,10 @@ namespace Grafik.Converters
             => throw new NotImplementedException();
     }
 
-    /// <summary>
-    /// IsMine=true → отступ справа маленький, слева большой (прижимаем вправо)
-    /// IsMine=false → наоборот (прижимаем влево)
-    /// </summary>
+
+    // IsMine=true → отступ справа маленький, слева большой (прижимаем вправо)
+    // IsMine=false → наоборот (прижимаем влево)
+
     public class BoolToBubbleMarginConverter : IValueConverter
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -41,11 +41,11 @@ namespace Grafik.Converters
             => throw new NotImplementedException();
     }
 
-    /// <summary>
-    /// IsMine=true → чуть более тёмный фон (свои сообщения)
-    /// IsMine=false → ещё чуть тёмнее (чужие сообщения)
-    /// Оба цвета чуть более насыщенные для лучшей читабельности на ПК
-    /// </summary>
+
+    // IsMine=true → чуть более тёмный фон (свои сообщения)
+    // IsMine=false → ещё чуть тёмнее (чужие сообщения)
+    // Оба цвета чуть более насыщенные для лучшей читабельности на ПК
+
     public class BoolToBubbleBackgroundConverter : IValueConverter
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -59,9 +59,9 @@ namespace Grafik.Converters
             => throw new NotImplementedException();
     }
 
-    /// <summary>
-    /// Инвертирует bool
-    /// </summary>
+
+    // Инвертирует bool
+
     public class InverseBoolConverter : IValueConverter
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)

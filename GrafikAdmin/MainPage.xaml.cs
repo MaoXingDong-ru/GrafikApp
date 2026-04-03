@@ -40,17 +40,17 @@ public partial class MainPage : ContentPage
         UpdateSwapBadge(FirebaseConnectionMonitor.Instance.PendingSwapsCount);
     }
 
-    /// <summary>
-    /// Обработчик изменения счётчика ожидающих запросов
-    /// </summary>
+
+    // Обработчик изменения счётчика ожидающих запросов
+
     private void OnPendingSwapsCountChanged(object? sender, int count)
     {
         UpdateSwapBadge(count);
     }
 
-    /// <summary>
-    /// Обновить бейдж счётчика
-    /// </summary>
+
+    // Обновить бейдж счётчика
+
     private void UpdateSwapBadge(int count)
     {
         MainThread.BeginInvokeOnMainThread(() =>
@@ -122,7 +122,7 @@ public partial class MainPage : ContentPage
         var today = DateTime.Today;
         var months = new List<string>();
 
-        for (int i = 0; i < 3; i++)
+        for (int i = 1; i <= 3; i++)
         {
             var date = today.AddMonths(i);
             months.Add(date.ToString("MMMM yyyy"));
@@ -133,12 +133,11 @@ public partial class MainPage : ContentPage
         if (selected != null && selected != "Отмена")
         {
             var index = months.IndexOf(selected);
-            var targetDate = today.AddMonths(index);
+            var targetDate = today.AddMonths(index + 1);
 
             await Navigation.PushAsync(new ScheduleEditorPage(targetDate.Year, targetDate.Month));
         }
     }
-
     private async void OnScheduleSelected(object sender, SelectionChangedEventArgs e)
     {
         if (e.CurrentSelection.FirstOrDefault() is ScheduleInfo schedule)
@@ -146,6 +145,48 @@ public partial class MainPage : ContentPage
             await Navigation.PushAsync(new ScheduleEditorPage(schedule.Year, schedule.Month));
             ((CollectionView)sender).SelectedItem = null;
         }
+    }
+
+
+    // Удаление свайпом (Android/iOS)
+
+    private async void OnDeleteScheduleSwiped(object sender, EventArgs e)
+    {
+        if (sender is SwipeItem swipeItem && swipeItem.BindingContext is ScheduleInfo schedule)
+        {
+            await DeleteScheduleAsync(schedule);
+        }
+    }
+
+
+    // Удаление кнопкой (Windows)
+
+    private async void OnDeleteScheduleClicked(object sender, EventArgs e)
+    {
+        if (sender is Button button && button.BindingContext is ScheduleInfo schedule)
+        {
+            await DeleteScheduleAsync(schedule);
+        }
+    }
+
+
+    // Общая логика удаления с подтверждением
+
+    private async Task DeleteScheduleAsync(ScheduleInfo schedule)
+    {
+        var confirm = await DisplayAlert(
+            "🗑 Удаление расписания",
+            $"Удалить расписание «{schedule.DisplayName}»?\n\nЭто действие нельзя отменить.",
+            "Удалить",
+            "Отмена");
+
+        if (!confirm)
+            return;
+
+        _storageService.DeleteSchedule(schedule.Year, schedule.Month);
+        Debug.WriteLine($"[MainPage] Удалено расписание: {schedule.DisplayName}");
+
+        LoadSchedulesList();
     }
 
     private async void OnExportExcelClicked(object sender, EventArgs e)
@@ -171,23 +212,6 @@ public partial class MainPage : ContentPage
                 try
                 {
                     var filePath = await _excelService.ExportToExcelAsync(schedule);
-
-                    await DisplayAlert("Успех",
-                        $"Файл сохранён:\n{Path.GetFileName(filePath)}",
-                        "OK");
-
-                    bool share = await DisplayAlert("Поделиться?",
-                        "Хотите отправить файл?",
-                        "Да", "Нет");
-
-                    if (share)
-                    {
-                        await Share.Default.RequestAsync(new ShareFileRequest
-                        {
-                            Title = "Расписание",
-                            File = new ShareFile(filePath)
-                        });
-                    }
                 }
                 catch (Exception ex)
                 {

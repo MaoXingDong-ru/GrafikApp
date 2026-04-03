@@ -50,9 +50,9 @@ public partial class MainPage : ContentPage
         FirebaseConnectionMonitor.Instance.ConnectionStatusChanged -= OnConnectionStatusChanged;
     }
 
-    /// <summary>
-    /// Обработчик изменения статуса соединения — обновляет видимость кнопки чата
-    /// </summary>
+
+    // Обработчик изменения статуса соединения — обновляет видимость кнопки чата
+
     private void OnConnectionStatusChanged(object? sender, bool isConnected)
     {
         MainThread.BeginInvokeOnMainThread(() =>
@@ -62,9 +62,9 @@ public partial class MainPage : ContentPage
         });
     }
 
-    /// <summary>
-    /// Инициализирует и запускает FirebaseConnectionMonitor
-    /// </summary>
+
+    // Инициализирует и запускает FirebaseConnectionMonitor
+
     private static void InitializeFirebaseMonitor()
     {
         Console.WriteLine("[MainPage] Инициализация мониторинга Firebase...");
@@ -141,9 +141,9 @@ public partial class MainPage : ContentPage
         await ProcessExcelFile(fileBytes);
     }
 
-    /// <summary>
-    /// Публичный метод для загрузки расписания из файла (вызывается из ChatPage)
-    /// </summary>
+
+    // Публичный метод для загрузки расписания из файла (вызывается из ChatPage)
+
     public async Task ProcessExcelFileAsync(string filePath)
     {
         try
@@ -478,9 +478,9 @@ public partial class MainPage : ContentPage
         }
     }
 
-    /// <summary>
-    /// Публичный метод для удаления всех данных (вызывается из ChatPage и UI)
-    /// </summary>
+
+    // Публичный метод для удаления всех данных (вызывается из ChatPage и UI)
+
     public async Task ClearAllDataAsync()
     {
         try

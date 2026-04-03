@@ -4,9 +4,9 @@ using Grafik.Services;
 
 namespace Grafik.Controls;
 
-/// <summary>
+
 /// Индикатор соединения с Firebase (кружок)
-/// </summary>
+
 public class ConnectionIndicator : Frame
 {
     public ConnectionIndicator()

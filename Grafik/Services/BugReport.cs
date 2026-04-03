@@ -3,18 +3,18 @@ using System.Text.Json.Serialization;
 
 namespace Grafik.Services;
 
-/// <summary>
+
 /// Тип обращения: баг-репорт или предложение
-/// </summary>
+
 public enum BugReportType
 {
     Bug,
     Feature
 }
 
-/// <summary>
+
 /// Статус обращения
-/// </summary>
+
 public enum BugReportStatus
 {
     Open,
@@ -23,29 +23,29 @@ public enum BugReportStatus
     Rejected
 }
 
-/// <summary>
+
 /// Модель баг-репорта / предложения в Firebase
-/// </summary>
+
 public class BugReport
 {
-    /// <summary>
-    /// Имя разработчика — только он видит панель управления
-    /// </summary>
+
+    // Имя разработчика — только он видит панель управления
+
     public const string DeveloperName = "Сальников Степан";
 
-    /// <summary>
-    /// Количество дней хранения завершённых репортов (resolved / rejected)
-    /// </summary>
+
+    // Количество дней хранения завершённых репортов (resolved / rejected)
+
     public const int RetentionDays = 30;
 
-    /// <summary>
-    /// Статусы, при которых репорт подлежит автоудалению по истечении срока
-    /// </summary>
+
+    // Статусы, при которых репорт подлежит автоудалению по истечении срока
+
     public static readonly HashSet<string> CleanupStatuses = ["resolved", "rejected"];
 
-    /// <summary>
-    /// Все доступные статусы для отображения в Picker
-    /// </summary>
+
+    // Все доступные статусы для отображения в Picker
+
     public static readonly List<string> StatusOptions =
     [
         "🔴 Открыто",
@@ -54,9 +54,9 @@ public class BugReport
         "⛔ Отклонено"
     ];
 
-    /// <summary>
-    /// Маппинг отображаемого статуса → значение для Firebase
-    /// </summary>
+
+    // Маппинг отображаемого статуса → значение для Firebase
+
     public static string StatusDisplayToValue(int index) => index switch
     {
         1 => "inprogress",
@@ -65,9 +65,9 @@ public class BugReport
         _ => "open"
     };
 
-    /// <summary>
-    /// Маппинг значения Firebase → индекс в Picker
-    /// </summary>
+
+    // Маппинг значения Firebase → индекс в Picker
+
     public static int StatusValueToIndex(string status) => status switch
     {
         "inprogress" => 1,
@@ -103,9 +103,9 @@ public class BugReport
     [JsonPropertyName("timestamp")]
     public DateTime Timestamp { get; set; }
 
-    /// <summary>
-    /// Ключ записи в Firebase. НЕ сериализуется при отправке.
-    /// </summary>
+
+    // Ключ записи в Firebase. НЕ сериализуется при отправке.
+
     [JsonIgnore]
     public string FirebaseKey { get; set; } = string.Empty;
 
@@ -151,9 +151,9 @@ public class BugReport
     [JsonIgnore]
     public string TimestampDisplay => Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
 
-    /// <summary>
-    /// Индекс текущего статуса для Picker
-    /// </summary>
+
+    // Индекс текущего статуса для Picker
+
     [JsonIgnore]
     public int StatusIndex => StatusValueToIndex(Status);
 }

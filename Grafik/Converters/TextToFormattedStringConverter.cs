@@ -5,10 +5,10 @@ using Microsoft.Maui.Controls;
 
 namespace Grafik.Converters;
 
-/// <summary>
+
 /// Конвертирует текст сообщения в FormattedString, где URL-ссылки кликабельны
 /// и открываются во внешнем браузере.
-/// </summary>
+
 public partial class TextToFormattedStringConverter : IValueConverter
 {
     // Регулярное выражение для поиска URL в тексте

@@ -58,9 +58,9 @@ public partial class ScheduleEditorPage : ContentPage
         _schedule.SecondLineEmployees = employees.SecondLine;
     }
 
-    /// <summary>
-    /// Сохранить расписание в хранилище
-    /// </summary>
+
+    // Сохранить расписание в хранилище
+
     private async Task SaveScheduleAsync()
     {
         _schedule.Entries.Clear();
@@ -201,11 +201,19 @@ public partial class ScheduleEditorPage : ContentPage
             }
         }
     }
+
     private async void OnCellClicked(object? sender, EventArgs e)
     {
         if (sender is Button button && button.CommandParameter is (string employee, DateTime date))
         {
-            var options = Enum.GetValues<ShiftType>()
+            bool isFirstLine = !_schedule.SecondLineEmployees.Contains(employee);
+
+            // Для первой линии — все типы смен, для второй — без "2 линия"
+            var availableShifts = Enum.GetValues<ShiftType>()
+                .Where(s => isFirstLine || !s.IsSecondLineShift())
+                .ToArray();
+
+            var options = availableShifts
                 .Select(s => s.ToDisplayString())
                 .ToArray();
 
@@ -217,7 +225,7 @@ public partial class ScheduleEditorPage : ContentPage
 
             if (selected != null && selected != "Отмена")
             {
-                var shiftType = Enum.GetValues<ShiftType>()
+                var shiftType = availableShifts
                     .First(s => s.ToDisplayString() == selected);
 
                 _shiftData[(employee, date)] = shiftType;
@@ -228,18 +236,18 @@ public partial class ScheduleEditorPage : ContentPage
         }
     }
 
-    /// <summary>
-    /// Сохранить только локально
-    /// </summary>
+
+    // Сохранить только локально
+
     private async void OnSaveClicked(object sender, EventArgs e)
     {
         await SaveScheduleAsync();
         await DisplayAlert("✅ Сохранено", "Расписание сохранено локально.", "OK");
     }
 
-    /// <summary>
-    /// Выгрузить в чат Firebase
-    /// </summary>
+
+    // Выгрузить в чат Firebase
+
     private async void OnUploadToChatClicked(object sender, EventArgs e)
     {
         await SaveScheduleAsync();
@@ -279,9 +287,9 @@ public partial class ScheduleEditorPage : ContentPage
         }
     }
 
-    /// <summary>
-    /// Экспорт в Excel
-    /// </summary>
+
+    // Экспорт в Excel
+
     private async void OnExportClicked(object sender, EventArgs e)
     {
         await SaveScheduleAsync();

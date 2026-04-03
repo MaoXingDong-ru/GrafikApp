@@ -6,7 +6,7 @@
              BackgroundColor="#1E1E1E">
 
     <Grid RowDefinitions="Auto,*,Auto">
-        
+
         <!-- Заголовок -->
         <Frame Grid.Row="0" Padding="15" BackgroundColor="#3D3D3D" CornerRadius="0" HasShadow="False">
             <StackLayout>
@@ -26,7 +26,7 @@
         <!-- Список сотрудников -->
         <ScrollView Grid.Row="1" Padding="10">
             <StackLayout Spacing="15">
-                
+
                 <!-- Первая линия -->
                 <Frame Padding="12" 
                        BackgroundColor="#2D2D2D" 
@@ -38,7 +38,7 @@
                                FontSize="18" 
                                FontAttributes="Bold"
                                TextColor="#2196F3"/>
-                        
+
                         <CollectionView x:Name="FirstLineList"
                                         SelectionMode="None">
                             <CollectionView.ItemTemplate>
@@ -54,23 +54,66 @@
                                                            Invoked="OnDeleteEmployee"/>
                                             </SwipeItems>
                                         </SwipeView.RightItems>
-                                        
+
                                         <Frame Padding="12" 
                                                Margin="0,3" 
                                                BackgroundColor="#1E1E1E" 
                                                BorderColor="#3D3D3D"
                                                CornerRadius="8"
                                                HasShadow="False">
-                                            <Grid ColumnDefinitions="*,Auto">
+                                            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+
                                                 <Label Text="{Binding .}" 
                                                        FontSize="16"
                                                        TextColor="White"
                                                        VerticalOptions="Center"/>
-                                                <Label Grid.Column="1" 
-                                                       Text="← свайп"
-                                                       FontSize="11"
-                                                       TextColor="#606060"
-                                                       VerticalOptions="Center"/>
+
+                                                <!-- Подсказка для мобильных -->
+                                                <Label Grid.Column="1">
+                                                    <Label.Text>
+                                                        <OnPlatform x:TypeArguments="x:String">
+                                                            <On Platform="Android, iOS" Value="← свайп"/>
+                                                            <On Platform="WinUI" Value=""/>
+                                                        </OnPlatform>
+                                                    </Label.Text>
+                                                    <Label.FontSize>11</Label.FontSize>
+                                                    <Label.TextColor>#606060</Label.TextColor>
+                                                    <Label.VerticalOptions>Center</Label.VerticalOptions>
+                                                </Label>
+
+                                                <!-- Кнопки для Windows -->
+                                                <Button Grid.Column="2"
+                                                        Text="→ 2"
+                                                        BackgroundColor="#4CAF50"
+                                                        TextColor="White"
+                                                        FontSize="12"
+                                                        Padding="8,4"
+                                                        Margin="5,0"
+                                                        CornerRadius="5"
+                                                        Clicked="OnMoveToSecondLineButtonClicked">
+                                                    <Button.IsVisible>
+                                                        <OnPlatform x:TypeArguments="x:Boolean">
+                                                            <On Platform="Android, iOS" Value="False"/>
+                                                            <On Platform="WinUI" Value="True"/>
+                                                        </OnPlatform>
+                                                    </Button.IsVisible>
+                                                </Button>
+
+                                                <Button Grid.Column="3"
+                                                        Text="🗑️"
+                                                        BackgroundColor="#F44336"
+                                                        TextColor="White"
+                                                        FontSize="12"
+                                                        Padding="8,4"
+                                                        CornerRadius="5"
+                                                        Clicked="OnDeleteEmployeeButtonClicked">
+                                                    <Button.IsVisible>
+                                                        <OnPlatform x:TypeArguments="x:Boolean">
+                                                            <On Platform="Android, iOS" Value="False"/>
+                                                            <On Platform="WinUI" Value="True"/>
+                                                        </OnPlatform>
+                                                    </Button.IsVisible>
+                                                </Button>
                                             </Grid>
                                         </Frame>
                                     </SwipeView>
@@ -97,7 +140,7 @@
                                FontSize="18" 
                                FontAttributes="Bold"
                                TextColor="#4CAF50"/>
-                        
+
                         <CollectionView x:Name="SecondLineList"
                                         SelectionMode="None">
                             <CollectionView.ItemTemplate>
@@ -113,23 +156,66 @@
                                                            Invoked="OnDeleteEmployee"/>
                                             </SwipeItems>
                                         </SwipeView.RightItems>
-                                        
+
                                         <Frame Padding="12" 
                                                Margin="0,3" 
                                                BackgroundColor="#1E1E1E" 
                                                BorderColor="#3D3D3D"
                                                CornerRadius="8"
                                                HasShadow="False">
-                                            <Grid ColumnDefinitions="*,Auto">
+                                            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+
                                                 <Label Text="{Binding .}" 
                                                        FontSize="16"
                                                        TextColor="White"
                                                        VerticalOptions="Center"/>
-                                                <Label Grid.Column="1" 
-                                                       Text="← свайп"
-                                                       FontSize="11"
-                                                       TextColor="#606060"
-                                                       VerticalOptions="Center"/>
+
+                                                <!-- Подсказка для мобильных -->
+                                                <Label Grid.Column="1">
+                                                    <Label.Text>
+                                                        <OnPlatform x:TypeArguments="x:String">
+                                                            <On Platform="Android, iOS" Value="← свайп"/>
+                                                            <On Platform="WinUI" Value=""/>
+                                                        </OnPlatform>
+                                                    </Label.Text>
+                                                    <Label.FontSize>11</Label.FontSize>
+                                                    <Label.TextColor>#606060</Label.TextColor>
+                                                    <Label.VerticalOptions>Center</Label.VerticalOptions>
+                                                </Label>
+
+                                                <!-- Кнопки для Windows -->
+                                                <Button Grid.Column="2"
+                                                        Text="→ 1"
+                                                        BackgroundColor="#2196F3"
+                                                        TextColor="White"
+                                                        FontSize="12"
+                                                        Padding="8,4"
+                                                        Margin="5,0"
+                                                        CornerRadius="5"
+                                                        Clicked="OnMoveToFirstLineButtonClicked">
+                                                    <Button.IsVisible>
+                                                        <OnPlatform x:TypeArguments="x:Boolean">
+                                                            <On Platform="Android, iOS" Value="False"/>
+                                                            <On Platform="WinUI" Value="True"/>
+                                                        </OnPlatform>
+                                                    </Button.IsVisible>
+                                                </Button>
+
+                                                <Button Grid.Column="3"
+                                                        Text="🗑️"
+                                                        BackgroundColor="#F44336"
+                                                        TextColor="White"
+                                                        FontSize="12"
+                                                        Padding="8,4"
+                                                        CornerRadius="5"
+                                                        Clicked="OnDeleteEmployeeButtonClicked">
+                                                    <Button.IsVisible>
+                                                        <OnPlatform x:TypeArguments="x:Boolean">
+                                                            <On Platform="Android, iOS" Value="False"/>
+                                                            <On Platform="WinUI" Value="True"/>
+                                                        </OnPlatform>
+                                                    </Button.IsVisible>
+                                                </Button>
                                             </Grid>
                                         </Frame>
                                     </SwipeView>
@@ -158,7 +244,7 @@
                 HeightRequest="50"
                 CornerRadius="10"
                 Clicked="OnAddEmployeeClicked"/>
-        
+
     </Grid>
 
 </ContentPage>

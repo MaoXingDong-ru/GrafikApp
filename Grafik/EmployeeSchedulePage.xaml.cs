@@ -91,9 +91,9 @@ namespace Grafik
             Debug.WriteLine("[EmployeeSchedulePage] OnDisappearing");
         }
 
-        /// <summary>
-        /// Обработчик изменения статуса соединения — обновляет видимость кнопки чата
-        /// </summary>
+    
+        // Обработчик изменения статуса соединения — обновляет видимость кнопки чата
+    
         private void OnConnectionStatusChanged(object? sender, bool isConnected)
         {
             MainThread.BeginInvokeOnMainThread(() =>
@@ -103,9 +103,9 @@ namespace Grafik
             });
         }
 
-        /// <summary>
-        /// Обработчик события применения обмена — перезагружаем расписание
-        /// </summary>
+    
+        // Обработчик события применения обмена — перезагружаем расписание
+    
         private async void OnSwapApplied(object? sender, SwapAppliedEventArgs e)
         {
             Debug.WriteLine($"[EmployeeSchedulePage] 🔄 Получено событие обмена: {e.Swap.RequesterName} ↔️ {e.Swap.TargetName}");

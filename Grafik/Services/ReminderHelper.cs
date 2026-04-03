@@ -16,9 +16,9 @@
             };
         }
 
-        /// <summary>
-        /// Получить отображаемое имя опции напоминания
-        /// </summary>
+    
+        // Получить отображаемое имя опции напоминания
+    
         public static string GetDisplayName(ReminderOption reminder)
         {
             return reminder switch
