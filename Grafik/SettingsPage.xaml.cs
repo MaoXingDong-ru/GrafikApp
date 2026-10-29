@@ -19,20 +19,17 @@ public partial class SettingsPage : ContentPage
     [
         ReminderOption.FifteenMinutesBefore,  // 0 - "За 15 минут"
         ReminderOption.OneHourBefore,          // 1 - "За 1 час"
-        ReminderOption.OneDayBefore            // 2 - "За 1 день"
+        ReminderOption.OneDayBefore,            // 2 - "За 1 день"
+        ReminderOption.None                   // 3 - "Без уведомлений"
     ];
- 
+
     public SettingsPage()
     {
         InitializeComponent();
 
-        // Инициализация Picker
-        ReminderPicker.ItemsSource = new List<string>
-        {
-            "За 15 минут",
-            "За 1 час",
-            "За 12 часов"
-        };
+        ReminderPicker.ItemsSource = ReminderOptions
+            .Select(ReminderHelper.GetDisplayName)
+            .ToList();
 
         LoadSettings();
     }

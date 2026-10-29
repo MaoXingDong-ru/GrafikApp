@@ -4,25 +4,60 @@
 
     <AbsoluteLayout>
         <!-- Основной контент -->
-        <Grid Padding="10" RowDefinitions="Auto,*" 
+        <Grid Padding="10" RowDefinitions="Auto,Auto,*"
               AbsoluteLayout.LayoutBounds="0,0,1,1"
               AbsoluteLayout.LayoutFlags="All">
-            <!-- Верхняя панель -->
-            <Grid ColumnDefinitions="*,Auto" Row="0" VerticalOptions="Center" ColumnSpacing="10">
-                <Label x:Name="EmployeeNameLabel" FontSize="24"
+
+            <!-- Верхняя панель: слева ФИ, справа выбор месяца -->
+            <Grid Grid.Row="0"
+                  ColumnDefinitions="*,Auto"
+                  ColumnSpacing="10"
+                  VerticalOptions="Center"
+                  Margin="0,0,0,10">
+
+                <Label x:Name="EmployeeNameLabel"
+                       FontSize="22"
+                       FontAttributes="Bold"
+                       LineBreakMode="TailTruncation"
                        VerticalOptions="Center"
                        HorizontalOptions="Start" />
 
-                <StackLayout Orientation="Horizontal" Spacing="10" Grid.Column="1"
-                             VerticalOptions="Center" HorizontalOptions="End">
-                    <Label Text="Список" VerticalOptions="Center"/>
-                    <Switch x:Name="ViewSwitch" VerticalOptions="Center" />
-                    <Label Text="Таблица" VerticalOptions="Center"/>
-                </StackLayout>
+                <Button x:Name="MonthPickerButton"
+                        Grid.Column="1"
+                        FontSize="16"
+                        FontAttributes="Bold"
+                        Padding="14,6"
+                        CornerRadius="18"
+                        BackgroundColor="Transparent"
+                        TextColor="Gray"
+                        BorderWidth="0"
+                        VerticalOptions="Center"
+                        HorizontalOptions="End"
+                        IsVisible="False"
+                        Clicked="OnMonthPickerClicked" />
             </Grid>
 
+            <!-- Ближайшая смена + статистика месяца -->
+            <Frame x:Name="InfoCard"
+                   Grid.Row="1"
+                   IsVisible="False"
+                   Padding="12"
+                   CornerRadius="12"
+                   HasShadow="False"
+                   Margin="2,0,2,10"
+                   BackgroundColor="{AppThemeBinding Light=#F0F0F0, Dark=#2D2D2D}"
+                   BorderColor="{AppThemeBinding Light=#D0D0D0, Dark=#3D3D3D}">
+                <VerticalStackLayout Spacing="3">
+                    <Label x:Name="NextShiftTitleLabel" FontSize="12" TextColor="Gray" />
+                    <Label x:Name="NextShiftTextLabel" FontSize="16" FontAttributes="Bold" />
+                    <Label x:Name="NextShiftCountdownLabel" FontSize="13" TextColor="#4CAF50" />
+                    <BoxView HeightRequest="1" Color="Gray" Opacity="0.3" Margin="0,4" />
+                    <Label x:Name="MonthStatsLabel" FontSize="13" TextColor="Gray" />
+                </VerticalStackLayout>
+            </Frame>
+
             <!-- Контент -->
-            <Grid Row="1">
+            <Grid Grid.Row="2">
                 <!-- Режим список -->
                 <ScrollView x:Name="ListContainer" IsVisible="True" Opacity="1">
                     <CollectionView x:Name="ScheduleListView">
@@ -32,6 +67,10 @@
                                        Margin="5"
                                        HasShadow="True"
                                        BorderColor="{Binding BorderColor}">
+                                    <Frame.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnScheduleListItemTapped" 
+                                                              CommandParameter="{Binding .}"/>
+                                    </Frame.GestureRecognizers>
                                     <StackLayout>
                                         <Label Text="{Binding Date, StringFormat='{0:D}  ({0:ddd})'}"
                                                FontAttributes="Bold"/>
@@ -66,7 +105,7 @@
 
                 <!-- Режим календарь -->
                 <ScrollView x:Name="CalendarContainer" IsVisible="False" Opacity="0">
-                    <StackLayout Spacing="0">
+                    <StackLayout Spacing="0" Padding="0,0,0,80">
                         <!-- Заголовок с днями недели -->
                         <Grid ColumnDefinitions="*,*,*,*,*,*,*" RowDefinitions="40">
                             <Label Text="Пн" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center"/>
@@ -78,64 +117,132 @@
                             <Label Text="Вс" FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" Grid.Column="6"/>
                         </Grid>
 
-                        <!-- Календарь -->
+                        <!-- Календарь: плитки одинаковой высоты -->
                         <CollectionView x:Name="CalendarView" SelectionMode="None">
                             <CollectionView.ItemsLayout>
                                 <GridItemsLayout Orientation="Vertical" Span="7"/>
                             </CollectionView.ItemsLayout>
                             <CollectionView.ItemTemplate>
                                 <DataTemplate>
-                                    <Frame Padding="5" Margin="2"
+                                    <Frame Padding="0" Margin="2"
+                                           HeightRequest="56"
                                            BackgroundColor="{Binding TileColor}"
                                            BorderColor="{Binding BorderColor}"
-                                           CornerRadius="8" HasShadow="True"
+                                           CornerRadius="8" HasShadow="False"
                                            IsVisible="{Binding IsVisibleDay}">
                                         <Frame.GestureRecognizers>
-                                            <TapGestureRecognizer Tapped="OnCalendarItemTapped" 
-                                                                 CommandParameter="{Binding .}"/>
+                                            <TapGestureRecognizer Tapped="OnCalendarItemTapped"
+                                                                  CommandParameter="{Binding .}"/>
                                         </Frame.GestureRecognizers>
-                                        <StackLayout>
+                                        <VerticalStackLayout Spacing="0" VerticalOptions="Center">
                                             <Label Text="{Binding Date, StringFormat='{0:dd}'}"
                                                    HorizontalOptions="Center"
                                                    FontSize="18"
-                                                   FontAttributes="Bold"/>
-                                            <Label Text="{Binding ShiftDisplayText}" 
+                                                   FontAttributes="Bold"
+                                                   LineBreakMode="NoWrap"/>
+                                            <Label Text="{Binding ShiftDisplayText}"
                                                    FontSize="10"
-                                                   HorizontalOptions="Center"/>
-                                        </StackLayout>
+                                                   HeightRequest="14"
+                                                   HorizontalOptions="Center"
+                                                   LineBreakMode="NoWrap"/>
+                                        </VerticalStackLayout>
                                     </Frame>
                                 </DataTemplate>
                             </CollectionView.ItemTemplate>
                         </CollectionView>
+
+                        <!-- Легенда: 4 равные колонки -->
+                        <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="4" Margin="0,12,0,8">
+                            <HorizontalStackLayout Grid.Column="0" Spacing="5" HorizontalOptions="Center">
+                                <BoxView WidthRequest="14" HeightRequest="14" CornerRadius="3" Color="#FF8C00" VerticalOptions="Center" />
+                                <Label Text="Дневная" FontSize="12" VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                            <HorizontalStackLayout Grid.Column="1" Spacing="5" HorizontalOptions="Center">
+                                <BoxView WidthRequest="14" HeightRequest="14" CornerRadius="3" Color="#00008B" VerticalOptions="Center" />
+                                <Label Text="Ночная" FontSize="12" VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                            <HorizontalStackLayout Grid.Column="2" Spacing="5" HorizontalOptions="Center">
+                                <BoxView WidthRequest="14" HeightRequest="14" CornerRadius="3" Color="#E0E0E0" VerticalOptions="Center" />
+                                <Label Text="Выходной" FontSize="12" VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                            <HorizontalStackLayout Grid.Column="3" Spacing="5" HorizontalOptions="Center">
+                                <Border WidthRequest="14" HeightRequest="14"
+                                        StrokeThickness="1.5" Stroke="Green"
+                                        BackgroundColor="Transparent" VerticalOptions="Center">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="3" />
+                                    </Border.StrokeShape>
+                                </Border>
+                                <Label Text="Сегодня" FontSize="12" VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                        </Grid>
+
+                        <!-- Сегодня на смене -->
+                        <Frame x:Name="TodayCard"
+                               IsVisible="False"
+                               Padding="12"
+                               CornerRadius="12"
+                               HasShadow="False"
+                               Margin="2,4"
+                               BackgroundColor="{AppThemeBinding Light=#F0F0F0, Dark=#2D2D2D}"
+                               BorderColor="{AppThemeBinding Light=#D0D0D0, Dark=#3D3D3D}">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="Сегодня на смене" FontSize="12" TextColor="Gray" />
+                                <Label x:Name="TodayLabel" FontSize="14" />
+                            </VerticalStackLayout>
+                        </Frame>
                     </StackLayout>
                 </ScrollView>
             </Grid>
         </Grid>
 
-        <!-- Кнопка чата (справа снизу с отступом) -->
-        <Button x:Name="ChatButton"
-                Text="💬"
-                FontSize="16"
-                WidthRequest="50"
-                HeightRequest="50"
-                CornerRadius="25"
-                BackgroundColor="#4CAF50"
-                TextColor="White"
-                Clicked="GoToChat"
-                Margin="0,0,10,10"
-                AbsoluteLayout.LayoutBounds="1,1,50,50"
-                AbsoluteLayout.LayoutFlags="PositionProportional" />
+        <!-- Нижняя панель: переключатель, обмен сменами, чат — в одну линию -->
+        <Grid AbsoluteLayout.LayoutBounds="0,1,1,AutoSize"
+              AbsoluteLayout.LayoutFlags="WidthProportional,PositionProportional"
+              ColumnDefinitions="Auto,*,Auto"
+              ColumnSpacing="10"
+              Padding="12,0,12,12">
 
-        <Button Text="🔄 Поменяться"
-                FontSize="14"
-                HeightRequest="45"
-                CornerRadius="22"
-                Padding="20,0"
-                BackgroundColor="#1976D2"
-                TextColor="White"
-                Clicked="OnSwapClicked"
-                AbsoluteLayout.LayoutBounds="0.5,1,AutoSize,AutoSize"
-                AbsoluteLayout.LayoutFlags="PositionProportional"
-                Margin="0,0,0,15" />
+            <Border Grid.Column="0"
+                    HeightRequest="50"
+                    Padding="12,0"
+                    StrokeThickness="1"
+                    Stroke="{AppThemeBinding Light=#D0D0D0, Dark=#3D3D3D}"
+                    BackgroundColor="{AppThemeBinding Light=#F0F0F0, Dark=#2D2D2D}"
+                    VerticalOptions="End">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="25" />
+                </Border.StrokeShape>
+                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                    <Label Text="Список / Таблица" FontSize="12" VerticalOptions="Center" />
+                    <Switch x:Name="ViewSwitch" VerticalOptions="Center" Scale="0.85" />
+                </HorizontalStackLayout>
+            </Border>
+
+            <Button Grid.Column="1"
+                    Text="🔄 Поменяться"
+                    FontSize="14"
+                    HeightRequest="50"
+                    CornerRadius="25"
+                    Padding="16,0"
+                    BackgroundColor="#1976D2"
+                    TextColor="White"
+                    HorizontalOptions="Center"
+                    VerticalOptions="End"
+                    Clicked="OnSwapClicked" />
+
+            <Button x:Name="ChatButton"
+                    Grid.Column="2"
+                    Text="💬"
+                    FontSize="18"
+                    WidthRequest="50"
+                    HeightRequest="50"
+                    CornerRadius="25"
+                    Padding="0"
+                    BackgroundColor="#4CAF50"
+                    TextColor="White"
+                    VerticalOptions="End"
+                    Clicked="GoToChat" />
+        </Grid>
     </AbsoluteLayout>
 </ContentPage>

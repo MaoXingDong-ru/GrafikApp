@@ -12,17 +12,16 @@
                 ReminderOption.OneHourBefore => shiftStart.AddHours(-1),
                 ReminderOption.TwoHoursBefore => shiftStart.AddHours(-2),
                 ReminderOption.OneDayBefore => shiftStart.AddDays(-1),
-                _ => shiftStart.AddMinutes(-30) // По умолчанию 30 минут
+                _ => shiftStart.AddMinutes(-30)
             };
         }
 
-    
         // Получить отображаемое имя опции напоминания
-    
         public static string GetDisplayName(ReminderOption reminder)
         {
             return reminder switch
             {
+                ReminderOption.None => "Без уведомлений",
                 ReminderOption.FiveMinutesBefore => "За 5 минут",
                 ReminderOption.FifteenMinutesBefore => "За 15 минут",
                 ReminderOption.ThirtyMinutesBefore => "За 30 минут",

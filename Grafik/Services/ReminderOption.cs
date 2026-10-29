@@ -1,10 +1,9 @@
 ﻿namespace Grafik.Services
 {
-
-    // Варианты напоминания перед смены
-
+    // Варианты напоминания перед сменой
     public enum ReminderOption
     {
+        None = 0, // Без уведомлений
         FiveMinutesBefore = 5,
         FifteenMinutesBefore = 15,
         ThirtyMinutesBefore = 30,

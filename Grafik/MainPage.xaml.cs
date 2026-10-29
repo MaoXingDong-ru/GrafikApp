@@ -9,7 +9,6 @@ namespace Grafik;
 
 public partial class MainPage : ContentPage
 {
-    private readonly string scheduleFilePath = Path.Combine(FileSystem.AppDataDirectory, "schedule.json");
     private readonly string employeeListFilePath = Path.Combine(FileSystem.AppDataDirectory, "employees.json");
 
     private static bool _monitorInitialized = false;
@@ -38,8 +37,11 @@ public partial class MainPage : ContentPage
         // Устанавливаем текущее состояние кнопки сразу
         ChatButton.IsVisible = FirebaseConnectionMonitor.Instance.IsConnected;
 
-        // Проверяем, есть ли сохраненный файл для загрузки из чата
+        // Проверяем, есть ли сохранённый файл для загрузки из чата
         await CheckAndLoadPendingScheduleFileAsync();
+
+        // Сводка на главной
+        await RefreshDashboardAsync();
     }
 
     protected override void OnDisappearing()
@@ -50,21 +52,22 @@ public partial class MainPage : ContentPage
         FirebaseConnectionMonitor.Instance.ConnectionStatusChanged -= OnConnectionStatusChanged;
     }
 
-
-    // Обработчик изменения статуса соединения — обновляет видимость кнопки чата
-
+    // Обработчик изменения статуса соединения — кнопка чата и плитка чата
     private void OnConnectionStatusChanged(object? sender, bool isConnected)
     {
         MainThread.BeginInvokeOnMainThread(() =>
         {
             ChatButton.IsVisible = isConnected;
+            UpdateChatStatus(isConnected);
+
+            if (isConnected)
+                _ = RefreshUnreadAsync();
+
             Console.WriteLine($"[MainPage] Кнопка чата: {(isConnected ? "видима ✓" : "скрыта ✗")}");
         });
     }
 
-
     // Инициализирует и запускает FirebaseConnectionMonitor
-
     private static void InitializeFirebaseMonitor()
     {
         Console.WriteLine("[MainPage] Инициализация мониторинга Firebase...");
@@ -87,6 +90,139 @@ public partial class MainPage : ContentPage
         await Navigation.PushAsync(new ChatPage());
     }
 
+    private async void OnChatTileTapped(object sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new ChatPage());
+    }
+
+    // ───────────── Сводка на главной ─────────────
+
+    private async Task RefreshDashboardAsync()
+    {
+        try
+        {
+            var employee = Preferences.Get("SelectedEmployee", string.Empty);
+            var slots = await Task.Run(ScheduleSlotService.GetSlots);
+
+            if (string.IsNullOrEmpty(employee) || slots.Count == 0)
+            {
+                DashboardGroup.IsVisible = false;
+                return;
+            }
+
+            var all = await Task.Run(ScheduleSlotService.LoadAll);
+            var now = DateTime.Now;
+
+            // Ближайшая смена
+            var next = ScheduleInsights.GetNextShift(all, employee, now);
+            if (next == null)
+            {
+                HomeNextTitleLabel.Text = "Ближайшая смена";
+                HomeNextTextLabel.Text = "Предстоящих смен нет";
+                HomeNextCountdownLabel.Text = string.Empty;
+            }
+            else
+            {
+                HomeNextTitleLabel.Text = next.IsActive ? "Сейчас на смене" : "Ближайшая смена";
+                HomeNextTextLabel.Text =
+                    $"{ScheduleInsights.DayLabel(next.Start, now)} · {next.Entry.Shift} · {next.Entry.Worktime}";
+                HomeNextCountdownLabel.Text = ScheduleInsights.Countdown(next, now);
+            }
+
+            // Сегодня на смене
+            var today = ScheduleInsights.DescribeWorkingOn(all, now, employee);
+            HomeTodayCard.IsVisible = !string.IsNullOrEmpty(today);
+            HomeTodayLabel.Text = today;
+
+            BuildSlotTiles(employee, slots, all);
+            UpdateChatStatus(FirebaseConnectionMonitor.Instance.IsConnected);
+            DashboardGroup.IsVisible = true;
+
+            await RefreshUnreadAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MainPage] Ошибка обновления сводки: {ex.Message}");
+        }
+    }
+
+    private void BuildSlotTiles(string employee, List<ScheduleMonth> slots, List<ShiftEntry> all)
+    {
+        SlotTilesGrid.Children.Clear();
+        SlotTilesGrid.ColumnDefinitions.Clear();
+
+        var currentMonth = new ScheduleMonth(DateTime.Today.Year, DateTime.Today.Month);
+
+        for (int i = 0; i < slots.Count; i++)
+        {
+            var month = slots[i];
+
+            int shifts = all
+                .Where(e => string.Equals(e.Employees, employee, StringComparison.OrdinalIgnoreCase)
+                            && month.Contains(e.Date)
+                            && !string.IsNullOrWhiteSpace(e.Shift))
+                .Select(e => e.Date.Date)
+                .Distinct()
+                .Count();
+
+            SlotTilesGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+
+            var tile = new Frame
+            {
+                Padding = new Thickness(8, 10),
+                CornerRadius = 12,
+                HasShadow = false,
+                BackgroundColor = Color.FromArgb("#2D2D2D"),
+                BorderColor = Color.FromArgb(month == currentMonth ? "#4CAF50" : "#3D3D3D"),
+                Content = new VerticalStackLayout
+                {
+                    Spacing = 2,
+                    Children =
+                    {
+                        new Label { Text = month.MonthName, FontSize = 14, FontAttributes = FontAttributes.Bold,
+                                    TextColor = Colors.White, HorizontalTextAlignment = TextAlignment.Center },
+                        new Label { Text = month.Year.ToString(), FontSize = 12,
+                                    TextColor = Color.FromArgb("#B0B0B0"), HorizontalTextAlignment = TextAlignment.Center },
+                        new Label { Text = $"{shifts} смен", FontSize = 12,
+                                    TextColor = Color.FromArgb("#4CAF50"), HorizontalTextAlignment = TextAlignment.Center }
+                    }
+                }
+            };
+
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += async (_, _) => await Navigation.PushAsync(new EmployeeSchedulePage(employee, month));
+            tile.GestureRecognizers.Add(tap);
+
+            SlotTilesGrid.Add(tile, i, 0);
+        }
+    }
+
+    private void UpdateChatStatus(bool connected)
+    {
+        ChatStatusDot.TextColor = connected ? Colors.LimeGreen : Colors.OrangeRed;
+        ChatStatusLabel.Text = connected ? "Чат подключён" : "Чат недоступен — нет соединения";
+
+        if (!connected)
+            ChatUnreadLabel.Text = string.Empty;
+    }
+
+    private async Task RefreshUnreadAsync()
+    {
+        if (!FirebaseConnectionMonitor.Instance.IsConnected)
+            return;
+
+        int? unread = await ChatUnreadService.GetUnreadCountAsync();
+
+        ChatUnreadLabel.Text = unread switch
+        {
+            > 0 => $"Новых сообщений: {unread}",
+            0 => "Новых сообщений нет",
+            _ => string.Empty
+        };
+    }
+
+    // ───────────── Загрузка расписания ─────────────
+
     private async void OnLoadExcelClicked(object sender, EventArgs e)
     {
         var customFileType = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>>
@@ -103,10 +239,16 @@ public partial class MainPage : ContentPage
                 FileTypes = customFileType
             });
 
-            if (result != null)
-            {
-                await ProcessExcelFile(result.FullPath);
-            }
+            if (result == null)
+                return;
+
+            var bytes = await File.ReadAllBytesAsync(result.FullPath);
+
+            // Единое подтверждение: какой месяц загружается и какой будет удалён
+            if (!await ConfirmScheduleLoadAsync(this, bytes))
+                return;
+
+            await ProcessExcelFile(bytes);
         }
         catch (Exception ex)
         {
@@ -114,20 +256,48 @@ public partial class MainPage : ContentPage
         }
     }
 
+    /// <summary>Подтверждение загрузки (используется и для файла, и для чата).</summary>
+    public static async Task<bool> ConfirmScheduleLoadAsync(Page page, byte[] fileBytes)
+    {
+        var plan = ScheduleSlotService.Inspect(ExtractScheduleFromExcel(fileBytes));
+
+        if (plan == null)
+        {
+            await page.DisplayAlert("Ошибка", "Не удалось определить месяц расписания в файле.", "OK");
+            return false;
+        }
+
+        string message = plan.ReplacesSame
+            ? $"Будет загружено расписание «{plan.NewMonth.Title}».\nОно заменит ранее загруженное за этот месяц."
+            : plan.Evicted is ScheduleMonth old
+                ? $"Будет загружено расписание «{plan.NewMonth.Title}».\nПри этом старый файл «{old.Title}» будет удалён."
+                : $"Будет загружено расписание «{plan.NewMonth.Title}».";
+
+        return await page.DisplayAlert("Загрузка расписания", message, "Загрузить", "Отмена");
+    }
+
     private async Task ProcessExcelFile(byte[] fileBytes)
     {
         var schedule = ExtractScheduleFromExcel(fileBytes);
-        SaveScheduleToJson(schedule);
 
-        var uniqueEmployees = schedule.Select(s => s.Employees).Distinct().ToList();
+        // Кладём в слот месяца; при переполнении самый старый слот удаляется
+        ScheduleSlotService.Save(schedule);
+
+        // Сотрудники — из всех слотов
+        var uniqueEmployees = ScheduleSlotService.GetEmployees();
         SaveEmployeesToJson(uniqueEmployees);
 
         if (uniqueEmployees.Count > 0)
         {
             EmployeePicker.ItemsSource = uniqueEmployees;
-            await AnimateToStep2UI();
+
+            if (!SecondStepGroup.IsVisible)
+                await AnimateToStep2UI();
+
             await ShowDeleteButton();
-            DisplayMessage("Данные успешно загружены");
+            MessageLabel.IsVisible = false;
+
+            await RefreshDashboardAsync();
         }
         else
         {
@@ -137,35 +307,17 @@ public partial class MainPage : ContentPage
 
     private async Task ProcessExcelFile(string filePath)
     {
-        var fileBytes = File.ReadAllBytes(filePath);
+        var fileBytes = await File.ReadAllBytesAsync(filePath);
         await ProcessExcelFile(fileBytes);
     }
 
-
-    // Публичный метод для загрузки расписания из файла (вызывается из ChatPage)
-
+    // Публичный метод для загрузки расписания из файла (вызывается из ChatPage;
+    // подтверждение уже получено на стороне чата)
     public async Task ProcessExcelFileAsync(string filePath)
     {
         try
         {
-            var fileBytes = await File.ReadAllBytesAsync(filePath);
-            var schedule = ExtractScheduleFromExcel(fileBytes);
-            SaveScheduleToJson(schedule);
-
-            var uniqueEmployees = schedule.Select(s => s.Employees).Distinct().ToList();
-            SaveEmployeesToJson(uniqueEmployees);
-
-            if (uniqueEmployees.Count > 0)
-            {
-                EmployeePicker.ItemsSource = uniqueEmployees;
-                await AnimateToStep2UI();
-                await ShowDeleteButton();
-                DisplayMessage($"Данные успешно загружены из файла");
-            }
-            else
-            {
-                DisplayMessage("Не удалось извлечь сотрудников из файла.");
-            }
+            await ProcessExcelFile(filePath);
         }
         catch (Exception ex)
         {
@@ -208,6 +360,8 @@ public partial class MainPage : ContentPage
         DeleteData.IsVisible = false;
     }
 
+    // ───────────── Разбор Excel ─────────────
+
     public static List<ShiftEntry> ExtractScheduleFromExcel(byte[] fileData)
     {
         var result = new List<ShiftEntry>();
@@ -218,7 +372,7 @@ public partial class MainPage : ContentPage
         var invalidNames = new HashSet<string>
         {
             "дата", "время", "date", "time", "",
-            "архипов дмитрий", "бруснигин антон"
+            "архипов дмитрий", "брусниги н антон"
         };
 
         var dayColumns = GetValidDayColumns(worksheet);
@@ -246,7 +400,7 @@ public partial class MainPage : ContentPage
         var invalidNames = new HashSet<string>
         {
             "дата", "время", "date", "time", "",
-            "архипов дмитрий", "бруснигин антон"
+            "архипов дмитрий", "брусниги н антон"
         };
 
         int firstLineCount = 0;
@@ -422,16 +576,12 @@ public partial class MainPage : ContentPage
         return $"{startLocal:HH:mm}-{endLocal:HH:mm}";
     }
 
+    // ───────────── Сохранение / загрузка списков ─────────────
+
     private void SaveEmployeesToJson(List<string> employees)
     {
         var json = JsonSerializer.Serialize(employees, new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(employeeListFilePath, json);
-    }
-
-    private static void SaveScheduleToJson(List<ShiftEntry> schedule)
-    {
-        var json = JsonSerializer.Serialize(schedule, new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(Path.Combine(FileSystem.AppDataDirectory, "schedule.json"), json);
     }
 
     private void LoadEmployeeList()
@@ -478,21 +628,22 @@ public partial class MainPage : ContentPage
         }
     }
 
-
-    // Публичный метод для удаления всех данных (вызывается из ChatPage и UI)
-
+    // Публичный метод для удаления всех данных (вызывается из UI)
     public async Task ClearAllDataAsync()
     {
         try
         {
+            // Удаляет все слоты и объединённый schedule.json
+            ScheduleSlotService.ClearAll();
+
             if (File.Exists(employeeListFilePath))
                 File.Delete(employeeListFilePath);
 
-            if (File.Exists(scheduleFilePath))
-                File.Delete(scheduleFilePath);
-
             Preferences.Remove("SelectedEmployee");
+            Preferences.Remove("SelectedScheduleMonth");
             Preferences.Remove("PendingScheduleFile");
+
+            DashboardGroup.IsVisible = false;
 
             await AnimateBackToStep1UI();
             await HideDeleteButton();
@@ -562,46 +713,28 @@ public partial class MainPage : ContentPage
         }
     }
 
+    // Файл из чата уже подтверждён пользователем в ChatPage — грузим без повторных вопросов
     private async Task CheckAndLoadPendingScheduleFileAsync()
     {
         try
         {
             var pendingFile = Preferences.Get("PendingScheduleFile", string.Empty);
+            if (string.IsNullOrEmpty(pendingFile))
+                return;
 
-            if (!string.IsNullOrEmpty(pendingFile) && File.Exists(pendingFile))
+            Preferences.Remove("PendingScheduleFile");
+
+            if (!File.Exists(pendingFile))
+                return;
+
+            try
             {
-                Console.WriteLine("[MainPage] Найден ожидающий файл расписания: " + pendingFile);
-
-                bool shouldLoad = await DisplayAlert(
-                    "📎 Загрузить расписание",
-                    "Обнаружен файл расписания из чата.\n\nЗагрузить его сейчас?",
-                    "Да",
-                    "Нет"
-                );
-
-                if (shouldLoad)
-                {
-                    Console.WriteLine("[MainPage] Загрузка ожидающего файла...");
-
-                    try
-                    {
-                        await ClearAllDataAsync();
-                        await ProcessExcelFileAsync(pendingFile);
-
-                        await DisplayAlert("✅ Успех",
-                            "Расписание успешно загружено!",
-                            "OK");
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[MainPage] Ошибка при загрузке: {ex.Message}");
-                        await DisplayAlert("❌ Ошибка",
-                            $"Не удалось загрузить расписание:\n{ex.Message}",
-                            "OK");
-                    }
-                }
-
-                Preferences.Remove("PendingScheduleFile");
+                await ProcessExcelFileAsync(pendingFile);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MainPage] Ошибка при загрузке: {ex.Message}");
+                await DisplayAlert("❌ Ошибка", $"Не удалось загрузить расписание:\n{ex.Message}", "OK");
             }
         }
         catch (Exception ex)

@@ -132,20 +132,30 @@ namespace Grafik.Services
 
         #endregion
 
-    
+
         // Генерация стабильного ID на основе данных смены (не зависит от момента вызова)
-    
+
         private static int GenerateStableNotificationId(string title, string message, DateTime notifyTime)
         {
-            // Округляем время до минуты для стабильности
             var roundedTime = new DateTime(notifyTime.Year, notifyTime.Month, notifyTime.Day,
                 notifyTime.Hour, notifyTime.Minute, 0);
-            return (title + message + roundedTime.Ticks).GetHashCode() & 0x7FFFFFFF;
+
+            // FNV-1a: детерминированный хэш, не зависит от запуска процесса
+            unchecked
+            {
+                uint hash = 2166136261;
+                foreach (char c in $"{title}|{message}|{roundedTime.Ticks}")
+                {
+                    hash ^= c;
+                    hash *= 16777619;
+                }
+                return (int)(hash & 0x7FFFFFFF);
+            }
         }
 
-    
+
         // Показать немедленное уведомление (для новых сообщений в чате)
-    
+
         public static void ShowInstantNotification(string title, string message, string channelId = CHAT_CHANNEL_ID)
         {
 #if ANDROID
@@ -466,9 +476,9 @@ namespace Grafik.Services
                 SHIFT_CHANNEL_ID);
         }
 
-    
+
         // Отменить все запланированные уведомления о сменах
-    
+
         public static void CancelAllShiftNotifications()
         {
 #if ANDROID
@@ -587,38 +597,40 @@ namespace Grafik.Services
 #endif
         }
 
-    
+
         // Перепланировать все уведомления для конкретного сотрудника.
         // Сначала отменяет все старые, затем планирует новые.
-    
+
         public static void RescheduleAllForEmployee(string employeeName, List<ShiftEntry> schedule, ReminderOption reminder)
         {
-            System.Diagnostics.Debug.WriteLine($"[NotificationService] 🔄 Перепланирование уведомлений для {employeeName}");
+            System.Diagnostics.Debug.WriteLine($"[NotificationService] 🔄 Перепланирование для {employeeName}, режим: {reminder}");
 
-            // 1. Отменяем ВСЕ старые будильники
+            // 1. Отменяем ВСЕ старые будильники/таймеры
             CancelAllShiftNotifications();
 
-            // 2. Сохраняем имя сотрудника, для которого планируем
+            // 2. «Без уведомлений» — ничего не планируем
+            if (reminder == ReminderOption.None)
+            {
+                System.Diagnostics.Debug.WriteLine("[NotificationService] 🔕 Уведомления отключены");
+                return;
+            }
+
             Preferences.Set(SCHEDULED_EMPLOYEE_KEY, employeeName);
 
-            // 3. Планируем только для текущего сотрудника
-            var employeeEntries = schedule
-                .Where(e => string.Equals(e.Employees, employeeName, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
             int count = 0;
-            foreach (var entry in employeeEntries)
+            foreach (var entry in schedule.Where(e =>
+                         string.Equals(e.Employees, employeeName, StringComparison.OrdinalIgnoreCase)))
             {
                 ScheduleShiftNotification(entry, reminder);
                 count++;
             }
 
-            System.Diagnostics.Debug.WriteLine($"[NotificationService] ✅ Перепланировано {count} уведомлений для {employeeName}");
+            System.Diagnostics.Debug.WriteLine($"[NotificationService] ✅ Перепланировано {count} для {employeeName}");
         }
 
-    
+
         // Получить имя сотрудника, для которого запланированы текущие уведомления
-    
+
         public static string GetScheduledEmployee()
         {
             return Preferences.Get(SCHEDULED_EMPLOYEE_KEY, string.Empty);

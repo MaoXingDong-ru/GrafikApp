@@ -9,33 +9,33 @@
         <Grid RowDefinitions="Auto,*"
               AbsoluteLayout.LayoutBounds="0,0,1,1"
               AbsoluteLayout.LayoutFlags="All">
-            
+
             <!-- Верхняя панель с индикатором -->
             <Grid Grid.Row="0" 
                   Padding="15,10" 
                   BackgroundColor="#2D2D2D"
                   ColumnDefinitions="*,Auto">
-                
+
                 <Label Grid.Column="0"
                        Text="📅 Расписание"
                        FontSize="18"
                        FontAttributes="Bold"
                        TextColor="White"
                        VerticalOptions="Center"/>
-                
+
                 <!-- Индикатор соединения -->
                 <controls:ConnectionIndicator Grid.Column="1"/>
             </Grid>
 
             <!-- Основной контент -->
             <ScrollView Grid.Row="1">
-                <StackLayout Padding="20" Spacing="15" x:Name="MainStackLayout">
+                <StackLayout Padding="20,20,20,90" Spacing="15" x:Name="MainStackLayout">
                     <!-- Первая группа элементов (начальное состояние) -->
                     <StackLayout x:Name="FirstStepGroup">
                         <Label Text="Загрузи Excel файл расписания" 
                                FontSize="22" 
                                HorizontalOptions="Center" />
-                        
+
                         <Label x:Name="Transp1" 
                                BackgroundColor="Transparent"/>
 
@@ -52,14 +52,14 @@
                                Text="Выбери сотрудника" 
                                FontSize="22" 
                                HorizontalOptions="Center"/>
-                        
+
                         <Label x:Name="Transp2" 
                                BackgroundColor="Transparent"/>
-                        
+
                         <Picker x:Name="EmployeePicker" 
                                 SelectedIndexChanged="OnEmployeeSelected"
                                 HorizontalOptions="FillAndExpand"/>
-                        
+
                         <Label x:Name="Transp3" BackgroundColor="Transparent"/>
 
                         <Button x:Name="LoadSchedule" 
@@ -68,6 +68,44 @@
                                 HorizontalOptions="FillAndExpand"
                                 BackgroundColor="#191968"
                                 TextColor="White"/>
+                    </StackLayout>
+
+                    <!-- Сводка (видна, когда выбран сотрудник и есть расписание) -->
+                    <StackLayout x:Name="DashboardGroup" IsVisible="False" Spacing="12">
+
+                        <Frame Padding="12" CornerRadius="12" HasShadow="False"
+                               BackgroundColor="#2D2D2D" BorderColor="#3D3D3D">
+                            <VerticalStackLayout Spacing="3">
+                                <Label x:Name="HomeNextTitleLabel" FontSize="12" TextColor="#B0B0B0" />
+                                <Label x:Name="HomeNextTextLabel" FontSize="16" FontAttributes="Bold" TextColor="White" />
+                                <Label x:Name="HomeNextCountdownLabel" FontSize="13" TextColor="#4CAF50" />
+                            </VerticalStackLayout>
+                        </Frame>
+
+                        <Frame x:Name="HomeTodayCard" IsVisible="False" Padding="12" CornerRadius="12"
+                               HasShadow="False" BackgroundColor="#2D2D2D" BorderColor="#3D3D3D">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="Сегодня на смене" FontSize="12" TextColor="#B0B0B0" />
+                                <Label x:Name="HomeTodayLabel" FontSize="14" TextColor="White" />
+                            </VerticalStackLayout>
+                        </Frame>
+
+                        <Label Text="Расписания" FontSize="12" TextColor="#B0B0B0" />
+                        <Grid x:Name="SlotTilesGrid" ColumnSpacing="8" />
+
+                        <Frame x:Name="ChatTile" Padding="12" CornerRadius="12" HasShadow="False"
+                               BackgroundColor="#2D2D2D" BorderColor="#3D3D3D">
+                            <Frame.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnChatTileTapped" />
+                            </Frame.GestureRecognizers>
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                <Label x:Name="ChatStatusDot" Text="●" FontSize="18" VerticalOptions="Center" />
+                                <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                    <Label x:Name="ChatStatusLabel" FontSize="14" TextColor="White" />
+                                    <Label x:Name="ChatUnreadLabel" FontSize="12" TextColor="#B0B0B0" />
+                                </VerticalStackLayout>
+                            </Grid>
+                        </Frame>
                     </StackLayout>
 
                     <Label x:Name="MessageLabel" 
@@ -105,7 +143,7 @@
                 AbsoluteLayout.LayoutBounds="0.5,1,50,50"
                 AbsoluteLayout.LayoutFlags="XProportional,YProportional"/>
 
-        <!-- Кнопка настроек (справа снизу) --> 
+        <!-- Кнопка настроек (справа снизу) -->
         <Button x:Name="SettingsButton"
                 Text="⚙"
                 FontSize="16"

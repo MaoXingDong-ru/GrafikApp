@@ -1,27 +1,43 @@
-﻿using System;
-using System.IO;
-using System.Linq;
-using System.Collections.Generic;
-using System.Text.Json;
+﻿using Android.Content.Res;
+using Grafik.Services;
+using Java.Util.Prefs;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
-using Grafik.Services;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using static Android.Provider.CalendarContract;
 
 namespace Grafik
 {
     public partial class EmployeeSchedulePage : ContentPage
     {
         private const string ViewModeKey = "EmployeeViewMode";
+        private const string SelectedMonthKey = "SelectedScheduleMonth";
+
         private string _employeeName = string.Empty;
 
         private List<ShiftEntry> _employeeSchedule = new();
         private List<ShiftEntry> _allSchedule = new();
 
-        public EmployeeSchedulePage(string employeeName)
+        // Слоты: до 3 месяцев по возрастанию
+        private List<ScheduleMonth> _slots = new();
+        private ScheduleMonth? _selectedMonth;
+
+        public EmployeeSchedulePage(string employeeName, ScheduleMonth? initialMonth = null)
         {
             InitializeComponent();
             _employeeName = employeeName;
+
+            if (initialMonth != null)
+            {
+                _selectedMonth = initialMonth;
+                Preferences.Set(SelectedMonthKey, initialMonth.Value.Key);
+            }
 
             // Восстанавливаем последний выбранный режим: true = календарь, false = список
             bool savedMode = Preferences.Get(ViewModeKey, false);
@@ -58,7 +74,7 @@ namespace Grafik
                 await AnimateSwitchAsync(e.Value);
             };
 
-            // Расписание загружается из локального файла — интернет не нужен
+            // Расписание загружается из локальных файлов — интернет не нужен
             LoadEmployeeScheduleAsync(employeeName);
         }
 
@@ -77,7 +93,7 @@ namespace Grafik
 
             Debug.WriteLine("[EmployeeSchedulePage] OnAppearing");
 
-            // Перезагружаем расписание при возврате на страницу (из локального файла)
+            // Перезагружаем расписание при возврате на страницу (из локальных файлов)
             LoadEmployeeScheduleAsync(_employeeName);
         }
 
@@ -91,9 +107,6 @@ namespace Grafik
             Debug.WriteLine("[EmployeeSchedulePage] OnDisappearing");
         }
 
-    
-        // Обработчик изменения статуса соединения — обновляет видимость кнопки чата
-    
         private void OnConnectionStatusChanged(object? sender, bool isConnected)
         {
             MainThread.BeginInvokeOnMainThread(() =>
@@ -103,9 +116,6 @@ namespace Grafik
             });
         }
 
-    
-        // Обработчик события применения обмена — перезагружаем расписание
-    
         private async void OnSwapApplied(object? sender, SwapAppliedEventArgs e)
         {
             Debug.WriteLine($"[EmployeeSchedulePage] 🔄 Получено событие обмена: {e.Swap.RequesterName} ↔️ {e.Swap.TargetName}");
@@ -135,42 +145,37 @@ namespace Grafik
             }
         }
 
-        private async Task HandleShiftSelection(ShiftEntry shift)
+        private async void OnScheduleListItemTapped(object sender, EventArgs e)
         {
-            bool isMyWorkDay = !string.IsNullOrWhiteSpace(shift.Shift);
-
-            if (isMyWorkDay)
+            if (sender is Frame frame && frame.BindingContext is ShiftEntry shift)
             {
-                await DisplayAlert(
-                    $"{shift.Date:dd MMMM} — {shift.Shift}",
-                    BuildPopupText(shift),
-                    "OK"
-                );
-            }
-            else
-            {
-                var whoWorks = GetWhoWorksOnDate(shift.Date);
-
-                if (string.IsNullOrEmpty(whoWorks))
-                {
-                    await DisplayAlert(
-                        $"{shift.Date:dd MMMM, dddd}",
-                        "Нет данных о сменах на этот день",
-                        "OK"
-                    );
-                }
-                else
-                {
-                    await DisplayAlert(
-                        $"{shift.Date:dd MMMM, dddd}",
-                        whoWorks,
-                        "OK"
-                    );
-                }
+                await HandleShiftSelection(shift);
             }
         }
 
-        private string GetWhoWorksOnDate(DateTime date)
+        private async Task HandleShiftSelection(ShiftEntry shift)
+        {
+            bool isMyWorkDay = !string.IsNullOrWhiteSpace(shift.Shift);
+            var whoWorks = GetWhoWorksOnDate(shift.Date, highlightEmployee: _employeeName);
+
+            if (string.IsNullOrEmpty(whoWorks))
+            {
+                await DisplayAlert(
+                    $"{shift.Date:dd MMMM, dddd}",
+                    "Нет данных о сменах на этот день",
+                    "OK"
+                );
+                return;
+            }
+
+            string title = isMyWorkDay
+                ? $"{shift.Date:dd MMMM, dddd} (Ваша смена: {shift.Shift})"
+                : $"{shift.Date:dd MMMM, dddd}";
+
+            await DisplayAlert(title, whoWorks, "OK");
+        }
+
+        private string GetWhoWorksOnDate(DateTime date, string? highlightEmployee = null)
         {
             var shiftsOnDate = _allSchedule
                 .Where(s => s.Date.Date == date.Date && !string.IsNullOrWhiteSpace(s.Shift))
@@ -192,12 +197,23 @@ namespace Grafik
                 var shiftName = group.Key;
                 var employees = group.ToList();
 
-                var firstLine = employees.Where(e => !e.IsSecondLine).Select(e => e.Employees).ToList();
-                var secondLine = employees.Where(e => e.IsSecondLine).Select(e => e.Employees).ToList();
+                bool isMyShift = !string.IsNullOrEmpty(highlightEmployee) &&
+                                 employees.Any(e => string.Equals(e.Employees, highlightEmployee, StringComparison.OrdinalIgnoreCase));
+
+                var firstLine = employees
+                    .Where(e => !e.IsSecondLine)
+                    .Select(e => FormatEmployeeName(e.Employees, highlightEmployee))
+                    .ToList();
+
+                var secondLine = employees
+                    .Where(e => e.IsSecondLine)
+                    .Select(e => FormatEmployeeName(e.Employees, highlightEmployee))
+                    .ToList();
 
                 var worktime = employees.FirstOrDefault()?.Worktime ?? "";
 
-                lines.Add($"[{shiftName}]");
+                string header = isMyShift ? $"★ [{shiftName}] (Ваша смена)" : $"[{shiftName}]";
+                lines.Add(header);
 
                 if (!string.IsNullOrWhiteSpace(worktime))
                     lines.Add($"  Время: {worktime}");
@@ -212,6 +228,17 @@ namespace Grafik
             }
 
             return string.Join("\n", lines).TrimEnd();
+        }
+
+        private static string FormatEmployeeName(string name, string? highlightEmployee)
+        {
+            if (!string.IsNullOrEmpty(highlightEmployee) &&
+                string.Equals(name, highlightEmployee, StringComparison.OrdinalIgnoreCase))
+            {
+                return $"➤ {name} (Вы)";
+            }
+
+            return name;
         }
 
         private async System.Threading.Tasks.Task AnimateSwitchAsync(bool toCalendar)
@@ -232,44 +259,33 @@ namespace Grafik
             }
         }
 
+        // ───────────── Загрузка и слоты ─────────────
+
         public async void LoadEmployeeScheduleAsync(string employeeName)
         {
             try
             {
-                var filePath = Path.Combine(FileSystem.AppDataDirectory, "schedule.json");
+                _allSchedule = await Task.Run(ScheduleSlotService.LoadAll);
+                _slots = await Task.Run(ScheduleSlotService.GetSlots);
 
-                if (!File.Exists(filePath))
+                if (_slots.Count == 0)
                 {
+                    _selectedMonth = null;
+                    _employeeSchedule = new();
                     ScheduleListView.ItemsSource = Array.Empty<ShiftEntry>();
                     CalendarView.ItemsSource = Array.Empty<ShiftEntry>();
+                    UpdateMonthPickerButton();
+                    UpdateInsights();
                     return;
                 }
 
-                var json = await File.ReadAllTextAsync(filePath);
-                _allSchedule = JsonSerializer.Deserialize<List<ShiftEntry>>(json) ?? new();
+                // Если выбранный месяц исчез (слот вытеснен) — выбираем новый
+                if (_selectedMonth is not ScheduleMonth current || !_slots.Contains(current))
+                    _selectedMonth = PickDefaultMonth();
 
-                _employeeSchedule = _allSchedule
-                    .Where(e => e.Employees == employeeName)
-                    .OrderBy(e => e.Date)
-                    .ToList();
+                ApplySelectedMonth();
 
-                EnrichWithColleaguesInfo(_allSchedule, _employeeSchedule, employeeName);
-
-                var today = DateTime.Today;
-
-                foreach (var entry in _employeeSchedule)
-                    entry.BorderColor = entry.Date.Date == today ? Colors.Green : Colors.Transparent;
-
-                ScheduleListView.ItemsSource = _employeeSchedule;
-
-                DateTime monthToDisplay = today;
-                if (_employeeSchedule.Count > 0)
-                {
-                    monthToDisplay = _employeeSchedule.First().Date;
-                }
-
-                GenerateCalendarForMonth(monthToDisplay, today);
-
+                // _allSchedule содержит все слоты — уведомления планируются на все месяцы
                 LoadScheduleData();
             }
             catch (Exception ex)
@@ -281,6 +297,162 @@ namespace Grafik
                 });
             }
         }
+
+        private ScheduleMonth PickDefaultMonth()
+        {
+            // 1. Последний выбранный месяц
+            var savedKey = Preferences.Get(SelectedMonthKey, string.Empty);
+            var saved = _slots.Where(m => m.Key == savedKey).Cast<ScheduleMonth?>().FirstOrDefault();
+            if (saved != null)
+                return saved.Value;
+
+            // 2. Текущий месяц, иначе ближайший прошедший, иначе самый ранний
+            var now = new ScheduleMonth(DateTime.Today.Year, DateTime.Today.Month);
+            if (_slots.Contains(now))
+                return now;
+
+            return _slots.Where(m => m.CompareTo(now) <= 0).DefaultIfEmpty(_slots[0]).Last();
+        }
+
+        private void ApplySelectedMonth()
+        {
+            if (_selectedMonth is not ScheduleMonth month)
+                return;
+
+            var today = DateTime.Today;
+
+            _employeeSchedule = _allSchedule
+                .Where(e => e.Employees == _employeeName && month.Contains(e.Date))
+                .OrderBy(e => e.Date)
+                .ToList();
+
+            EnrichWithColleaguesInfo(_allSchedule, _employeeSchedule, _employeeName);
+
+            foreach (var entry in _employeeSchedule)
+                entry.BorderColor = entry.Date.Date == today ? Colors.Green : Colors.Transparent;
+
+            ScheduleListView.ItemsSource = _employeeSchedule;
+            GenerateCalendarForMonth(new DateTime(month.Year, month.Month, 1), today);
+
+            UpdateMonthPickerButton();
+            UpdateInsights();
+        }
+
+        // ───────────── Выбор месяца (кнопка-«пикер») ─────────────
+
+        private void UpdateMonthPickerButton()
+        {
+            if (_slots.Count == 0 || _selectedMonth is not ScheduleMonth month)
+            {
+                MonthPickerButton.IsVisible = false;
+                return;
+            }
+
+            MonthPickerButton.Text = $"{month.Title} ▾";
+            MonthPickerButton.IsVisible = true;
+        }
+
+        private async void OnMonthPickerClicked(object sender, EventArgs e)
+        {
+            if (_slots.Count == 0)
+                return;
+
+            // Заголовки слотов в порядке возрастания; выбранный отмечаем галочкой
+            var titles = _slots
+                .Select(m => m == _selectedMonth ? $"✓ {m.Title}" : m.Title)
+                .ToArray();
+
+            var choice = await DisplayActionSheet("Выберите месяц", "Отмена", null, titles);
+
+            if (string.IsNullOrEmpty(choice) || choice == "Отмена")
+                return;
+
+            int index = Array.IndexOf(titles, choice);
+            if (index < 0 || _slots[index] == _selectedMonth)
+                return;
+
+            _selectedMonth = _slots[index];
+            Preferences.Set(SelectedMonthKey, _selectedMonth.Value.Key);
+            ApplySelectedMonth();
+        }
+
+        // ───────────── Карточки: ближайшая смена, статистика, «Сегодня на смене» ─────────────
+
+        private void UpdateInsights()
+        {
+            InfoCard.IsVisible = _slots.Count > 0;
+
+            if (_slots.Count == 0)
+            {
+                TodayCard.IsVisible = false;
+                return;
+            }
+
+            var now = DateTime.Now;
+
+            // Ближайшая смена (по всем слотам)
+            var next = ScheduleInsights.GetNextShift(_allSchedule, _employeeName, now);
+
+            if (next == null)
+            {
+                NextShiftTitleLabel.Text = "Ближайшая смена";
+                NextShiftTextLabel.Text = "Предстоящих смен нет";
+                NextShiftCountdownLabel.Text = string.Empty;
+            }
+            else
+            {
+                NextShiftTitleLabel.Text = next.IsActive ? "Сейчас на смене" : "Ближайшая смена";
+                NextShiftTextLabel.Text =
+                    $"{ScheduleInsights.DayLabel(next.Start, now)} · {next.Entry.Shift} · {next.Entry.Worktime}";
+                NextShiftCountdownLabel.Text = ScheduleInsights.Countdown(next, now);
+            }
+
+            // Статистика выбранного месяца
+            if (_selectedMonth is ScheduleMonth month)
+                MonthStatsLabel.Text = ScheduleInsights.FormatStats(
+                    ScheduleInsights.GetMonthStats(_employeeSchedule, month));
+
+            // Сегодня на смене
+            var today = ScheduleInsights.DescribeWorkingOn(_allSchedule, now, _employeeName);
+            TodayCard.IsVisible = !string.IsNullOrEmpty(today);
+            SetTodayText(today);
+        }
+
+        // Заголовки смен — жирным, строки с именами — без начальных пробелов и с одинаковым выравниванием
+        private void SetTodayText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                TodayLabel.FormattedText = null;
+                TodayLabel.Text = string.Empty;
+                return;
+            }
+
+            var formatted = new FormattedString();
+            var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                bool isHeader = line.Length > 0 && !char.IsWhiteSpace(line[0]);
+
+                var span = new Span
+                {
+                    Text = line.Trim() + (i < lines.Length - 1 ? "\n" : string.Empty),
+                    FontAttributes = isHeader ? FontAttributes.Bold : FontAttributes.None,
+                    FontSize = isHeader ? 14 : 13
+                };
+
+                if (!isHeader)
+                    span.TextColor = Colors.Gray;
+
+                formatted.Spans.Add(span);
+            }
+
+            TodayLabel.FormattedText = formatted;
+        }
+
+        // ───────────── Календарь ─────────────
 
         private void GenerateCalendarForMonth(DateTime monthDate, DateTime today)
         {
@@ -352,7 +524,7 @@ namespace Grafik
             if (string.IsNullOrWhiteSpace(shift)) return Colors.Transparent;
             var s = shift.ToLowerInvariant();
 
-            if (s.Contains("днев") || s.Contains("day")) return Color.FromArgb("#FF8C00");
+            if (s.Contains("дневн") || s.Contains("day")) return Color.FromArgb("#FF8C00");
             if (s.Contains("ноч") || s.Contains("night")) return Color.FromArgb("#00008B");
             if (s.Contains("выходной") || s.Contains("вых")) return Color.FromArgb("#E0E0E0");
             return Colors.Transparent;
@@ -393,18 +565,6 @@ namespace Grafik
             }
         }
 
-        private static string BuildPopupText(ShiftEntry s)
-        {
-            var lines = new List<string>();
-            if (!string.IsNullOrWhiteSpace(s.Worktime)) lines.Add(s.Worktime);
-            if (!string.IsNullOrWhiteSpace(s.DisplayOtherEmployees) &&
-                !string.Equals(s.DisplayOtherEmployees, "Нет совпадений", StringComparison.OrdinalIgnoreCase))
-                lines.Add(s.DisplayOtherEmployees);
-            if (!string.IsNullOrWhiteSpace(s.SecondLinePartner)) lines.Add(s.SecondLinePartner);
-
-            return string.Join("\n", lines);
-        }
-
         private async void GoToChat(object sender, EventArgs e)
         {
             await Navigation.PushAsync(new ChatPage(_employeeName));
@@ -414,6 +574,8 @@ namespace Grafik
         {
             await Navigation.PushAsync(new ShiftSwapPage(_employeeName));
         }
+
+        // ───────────── Уведомления ─────────────
 
         private void LoadScheduleData()
         {

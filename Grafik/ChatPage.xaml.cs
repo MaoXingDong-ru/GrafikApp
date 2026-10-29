@@ -567,79 +567,45 @@ public partial class ChatPage : ContentPage
 
                 Debug.WriteLine($"[ChatPage] Файл скачан: {filePath}");
 
-                bool shouldLoad = await DisplayAlert(
-                    "Файл загружен",
-                    $"📎 {Path.GetFileName(filePath)}\n\nЗагрузить расписание и заменить старые данные?",
-                    "Загрузить",
-                    "Отмена"
-                );
+                var fileBytes = await File.ReadAllBytesAsync(filePath);
 
-                if (!shouldLoad)
+                // Единственное подтверждение: «Будет загружен …, старый файл … будет удалён»
+                if (!await MainPage.ConfirmScheduleLoadAsync(this, fileBytes))
                 {
                     Debug.WriteLine("[ChatPage] Пользователь отказался загружать расписание");
                     return;
                 }
 
-                Debug.WriteLine("[ChatPage] Загрузка расписания из файла");
-
                 MainPage? mainPageInstance = null;
 
                 if (App.Current?.MainPage is NavigationPage navigationPage)
                 {
-                    Debug.WriteLine("[ChatPage] Найдена NavigationPage");
                     mainPageInstance = navigationPage.Navigation.NavigationStack
                         .OfType<MainPage>()
                         .FirstOrDefault();
-
-                    Debug.WriteLine($"[ChatPage] MainPage в стеке: {(mainPageInstance != null ? "найдена" : "не найдена")}");
                 }
 
-                if (mainPageInstance == null && App.Current?.MainPage is MainPage directMainPage)
-                {
-                    Debug.WriteLine("[ChatPage] MainPage найдена как корневая страница");
-                    mainPageInstance = directMainPage;
-                }
+                mainPageInstance ??= App.Current?.MainPage as MainPage;
 
                 if (mainPageInstance != null)
                 {
-                    Debug.WriteLine("[ChatPage] Найдена MainPage, загружаем и очищаем старые данные");
-
                     try
                     {
-                        Debug.WriteLine("[ChatPage] Удаление старых данных...");
-                        await mainPageInstance.ClearAllDataAsync();
-
-                        Debug.WriteLine("[ChatPage] Загрузка новых данных...");
                         await mainPageInstance.ProcessExcelFileAsync(filePath);
-
-                        await DisplayAlert(
-                            "Успех",
-                            "Расписание успешно обновлено!\n\nСтарые данные удалены и новые загружены.",
-                            "OK"
-                        );
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"[ChatPage] Ошибка при обновлении: {ex.Message}");
                         await DisplayAlert("Ошибка", $"Не удалось загрузить расписание:\n{ex.Message}", "OK");
+                        return;
                     }
                 }
                 else
                 {
-                    Debug.WriteLine("[ChatPage] MainPage не найдена");
-
+                    // MainPage загрузит файл сам при появлении (без повторного вопроса)
                     Preferences.Set("PendingScheduleFile", filePath);
-                    Debug.WriteLine("[ChatPage] Файл сохранен в Preferences для дальнейшей загрузки");
-
-                    await DisplayAlert(
-                        "Файл готов",
-                        $"Файл расписания готов к загрузке.\n\nВозвращаюсь на главное меню...",
-                        "OK"
-                    );
-
-                    Debug.WriteLine("[ChatPage] Возврат на главное меню");
-                    await Navigation.PopToRootAsync();
                 }
+
+                await Navigation.PopToRootAsync();
             }
         }
         catch (Exception ex)
