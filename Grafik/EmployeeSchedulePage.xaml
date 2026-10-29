@@ -169,9 +169,6 @@
                                 <Border WidthRequest="14" HeightRequest="14"
                                         StrokeThickness="1.5" Stroke="Green"
                                         BackgroundColor="Transparent" VerticalOptions="Center">
-                                    <Border.StrokeShape>
-                                        <RoundRectangle CornerRadius="3" />
-                                    </Border.StrokeShape>
                                 </Border>
                                 <Label Text="Сегодня" FontSize="12" VerticalOptions="Center" />
                             </HorizontalStackLayout>
@@ -199,49 +196,44 @@
         <!-- Нижняя панель: переключатель, обмен сменами, чат — в одну линию -->
         <Grid AbsoluteLayout.LayoutBounds="0,1,1,AutoSize"
               AbsoluteLayout.LayoutFlags="WidthProportional,PositionProportional"
-              ColumnDefinitions="Auto,*,Auto"
-              ColumnSpacing="10"
+              ColumnDefinitions="140,*,76"
+              ColumnSpacing="12"
               Padding="12,0,12,12">
 
-            <Border Grid.Column="0"
+            <Button x:Name="ViewModeButton"
+                    Grid.Column="0"
+                    FontSize="13"
+                    FontAttributes="Bold"
                     HeightRequest="50"
-                    Padding="12,0"
-                    StrokeThickness="1"
-                    Stroke="{AppThemeBinding Light=#D0D0D0, Dark=#3D3D3D}"
+                    WidthRequest="130"
+                    CornerRadius="25"
+                    Padding="0"
                     BackgroundColor="{AppThemeBinding Light=#F0F0F0, Dark=#2D2D2D}"
-                    VerticalOptions="End">
-                <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="25" />
-                </Border.StrokeShape>
-                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
-                    <Label Text="Список / Таблица" FontSize="12" VerticalOptions="Center" />
-                    <Switch x:Name="ViewSwitch" VerticalOptions="Center" Scale="0.85" />
-                </HorizontalStackLayout>
-            </Border>
+                    TextColor="{AppThemeBinding Light=Black, Dark=White}"
+                    BorderWidth="1"
+                    BorderColor="{AppThemeBinding Light=#D0D0D0, Dark=#3D3D3D}"
+                    Clicked="OnViewModeClicked" />
 
             <Button Grid.Column="1"
                     Text="🔄 Поменяться"
                     FontSize="14"
                     HeightRequest="50"
                     CornerRadius="25"
-                    Padding="16,0"
+                    Padding="0"
                     BackgroundColor="#1976D2"
                     TextColor="White"
-                    HorizontalOptions="Center"
-                    VerticalOptions="End"
                     Clicked="OnSwapClicked" />
 
             <Button x:Name="ChatButton"
                     Grid.Column="2"
                     Text="💬"
-                    FontSize="18"
+                    FontSize="20"
                     WidthRequest="50"
                     HeightRequest="50"
                     CornerRadius="25"
                     Padding="0"
                     BackgroundColor="#4CAF50"
                     TextColor="White"
-                    VerticalOptions="End"
                     Clicked="GoToChat" />
         </Grid>
     </AbsoluteLayout>

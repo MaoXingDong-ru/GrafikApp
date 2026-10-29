@@ -1,6 +1,4 @@
-﻿using Android.Content.Res;
-using Grafik.Services;
-using Java.Util.Prefs;
+﻿using Grafik.Services;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System;
@@ -10,7 +8,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using static Android.Provider.CalendarContract;
 
 namespace Grafik
 {
@@ -28,6 +25,9 @@ namespace Grafik
         private List<ScheduleMonth> _slots = new();
         private ScheduleMonth? _selectedMonth;
 
+        // Текущий режим: true = календарь (таблица), false = список
+        private bool _isCalendarMode;
+
         public EmployeeSchedulePage(string employeeName, ScheduleMonth? initialMonth = null)
         {
             InitializeComponent();
@@ -41,41 +41,31 @@ namespace Grafik
 
             // Восстанавливаем последний выбранный режим: true = календарь, false = список
             bool savedMode = Preferences.Get(ViewModeKey, false);
-            ViewSwitch.IsToggled = savedMode;
+            _isCalendarMode = savedMode;
             CalendarContainer.IsVisible = savedMode;
             CalendarContainer.Opacity = savedMode ? 1 : 0;
             ListContainer.IsVisible = !savedMode;
             ListContainer.Opacity = !savedMode ? 1 : 0;
+            UpdateViewModeButton();
 
             EmployeeNameLabel.Text = employeeName;
 
-            // спрятать встроенный текст On/Off у Switch на Android
-            ViewSwitch.HandlerChanged += (_, __) =>
-            {
-#if ANDROID
-                if (ViewSwitch.Handler?.PlatformView is AndroidX.AppCompat.Widget.SwitchCompat sw)
-                {
-                    sw.ShowText = false;
-                    sw.TextOn = string.Empty;
-                    sw.TextOff = string.Empty;
-                }
-#elif WINDOWS
-                if (ViewSwitch.Handler?.PlatformView is Microsoft.UI.Xaml.Controls.ToggleSwitch winSwitch)
-                {
-                    winSwitch.OnContent = "";
-                    winSwitch.OffContent = "";
-                }
-#endif
-            };
-
-            ViewSwitch.Toggled += async (s, e) =>
-            {
-                Preferences.Set(ViewModeKey, e.Value);
-                await AnimateSwitchAsync(e.Value);
-            };
-
             // Расписание загружается из локальных файлов — интернет не нужен
             LoadEmployeeScheduleAsync(employeeName);
+        }
+
+        // Кнопка показывает режим, в который переключит
+        private void UpdateViewModeButton()
+        {
+            ViewModeButton.Text = _isCalendarMode ? "Список" : "Таблица";
+        }
+
+        private async void OnViewModeClicked(object sender, EventArgs e)
+        {
+            _isCalendarMode = !_isCalendarMode;
+            Preferences.Set(ViewModeKey, _isCalendarMode);
+            UpdateViewModeButton();
+            await AnimateSwitchAsync(_isCalendarMode);
         }
 
         protected override void OnAppearing()
